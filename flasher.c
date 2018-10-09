@@ -14,19 +14,25 @@
 
 #define MAX_ERROR_COUNT             3
 
+#define HOLD_REG_JUMP_TO_BOOTLOADER         129
+#define HOLD_REG_CMD_UART_SETTINGS_RESET    1000
+#define HOLD_REG_CMD_EEPROM_ERASE           1001
+
 int main(int argc, char *argv[])
 {
     if (argc == 1) {
         printf("Welcome to Wiren Board flash tool.\n\n");
         printf("Usage:\n\n");
 
-        printf("Param  Description                             Default value\n\n");
-        printf("-d     Communication device                    -\n");
-        printf("-f     Firmware file                           -\n");
-        printf("-i     Modbus ID                               1\n");
-        printf("-j     Send jump to bootloader command         -\n");
-        printf("-r     Jump to bootloader register address     129\n");
-        printf("-D     Debug mode                              -\n");
+        printf("Param  Description                                               Default value\n\n");
+        printf("-d     Communication device                                      -\n");
+        printf("-f     Firmware file                                             -\n");
+        printf("-a     Modbus ID                                                 1\n");
+        printf("-j     Send jump to bootloader command                           -\n");
+        printf("-u     Reset UART setting and MODBUS address to factory default  -\n");
+        printf("-e     Format EEPROM (except device signature)                   -\n");
+        printf("-r     Jump to bootloader register address                       129\n");
+        printf("-D     Debug mode                                                -\n");
 
         printf("\nMinimal example: ./flasher -d /dev/ttyUSB0 -f firmware.wbfw\n\n");
 
@@ -38,11 +44,13 @@ int main(int argc, char *argv[])
     char *fileName = NULL;
     int   modbusID = 1;
     int   jumpCmd  = 0;
-    int   jumpReg  = 129;
+    int   uartResetCmd = 0;
+    int   eepromFormatCmd = 0;
+    int   jumpReg  = HOLD_REG_JUMP_TO_BOOTLOADER;
     int   debug    = 0;
 
     int c;
-    while ((c = getopt(argc, argv, "d:f:i:jr:D")) != -1) {
+    while ((c = getopt(argc, argv, "d:f:a:juer:D")) != -1) {
         switch (c) {
         case 'd':
             device = optarg;
@@ -50,11 +58,17 @@ int main(int argc, char *argv[])
         case 'f':
             fileName = optarg;
             break;
-        case 'i':
+        case 'a':
             sscanf(optarg, "%d", &modbusID);
             break;
         case 'j':
             jumpCmd = 1;
+            break;
+        case 'u':
+            uartResetCmd = 1;
+            break;
+        case 'e':
+            eepromFormatCmd = 1;
             break;
         case 'r':
             sscanf(optarg, "%d", &jumpReg);
@@ -67,17 +81,6 @@ int main(int argc, char *argv[])
             break;
         }
     }
-
-    FILE *file = fopen(fileName, "rb");
-    if (file == NULL) {
-        fprintf(stderr, "Error while opening firmware file: %s\n", strerror(errno));
-        return -1;
-    }
-
-    fseek(file, 0L, SEEK_END);
-    unsigned int filesize = ftell(file);
-    printf("%s opened successfully, size %d bytes\n", fileName, filesize);
-    rewind(file);
 
     modbus_t *mb = modbus_new_rtu(device, 9600, 'N', 8, 2);
 
@@ -117,6 +120,36 @@ int main(int argc, char *argv[])
         sleep(2);    // wait 2 seconds
     }
 
+    if (uartResetCmd) {
+        printf("Send reset UART settings and modbus address command...\n");
+        if (modbus_write_register(mb, HOLD_REG_CMD_UART_SETTINGS_RESET, 1) == 1) {
+            printf("Ok.\n");
+        } else {
+            printf("Error: %s.\n", modbus_strerror(errno));
+        }
+        sleep(1);    // wait 1 second
+    }
+
+    if (eepromFormatCmd) {
+        printf("Send format EEPROM command...\n");
+        if (modbus_write_register(mb, HOLD_REG_CMD_EEPROM_ERASE, 1) == 1) {
+            printf("Ok.\n");
+        } else {
+            printf("Error: %s.\n", modbus_strerror(errno));
+        }
+        sleep(1);    // wait 1 second
+    }
+
+    FILE *file = fopen(fileName, "rb");
+    if (file == NULL) {
+        fprintf(stderr, "Error while opening firmware file: %s\n", strerror(errno));
+        return -1;
+    }
+
+    fseek(file, 0L, SEEK_END);
+    unsigned int filesize = ftell(file);
+    printf("%s opened successfully, size %d bytes\n", fileName, filesize);
+    rewind(file);
 
     uint16_t *data = malloc(filesize);
     if (fread(data, 1, filesize, file) != filesize) {
