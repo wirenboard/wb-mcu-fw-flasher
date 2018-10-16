@@ -101,8 +101,8 @@ int main(int argc, char *argv[])
     modbus_set_debug(mb, debug);
 
     struct timeval response_timeout;
-    response_timeout.tv_sec = 0;
-    response_timeout.tv_usec = 1000 * 1000;
+    response_timeout.tv_sec = 10;
+    response_timeout.tv_usec = 0;
     #if LIBMODBUS_VERSION_CHECK(3, 1, 2)
         modbus_set_response_timeout(mb, response_timeout.tv_sec, response_timeout.tv_usec);
     #else
@@ -179,6 +179,14 @@ int main(int argc, char *argv[])
             return -1;
         }
     }
+
+    response_timeout.tv_sec = 1;
+    response_timeout.tv_usec = 0;
+    #if LIBMODBUS_VERSION_CHECK(3, 1, 2)
+        modbus_set_response_timeout(mb, response_timeout.tv_sec, response_timeout.tv_usec);
+    #else
+        modbus_set_response_timeout(mb, &response_timeout);
+    #endif
 
     printf("\n");
     while (filePointer < filesize) {
