@@ -8,7 +8,7 @@ else
        CC=$(DEB_HOST_GNU_TYPE)-gcc
 endif
 
-CC_FLAGS=`pkg-config --libs --cflags libmodbus`
+CC_FLAGS=-std=c99 `pkg-config --libs --cflags libmodbus`
 
 $(BIN_NAME): flasher.c
 	$(CC)  flasher.c  $(CC_FLAGS)  -o $(BIN_NAME)
