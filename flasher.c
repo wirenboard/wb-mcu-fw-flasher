@@ -97,6 +97,8 @@ int main(int argc, char *argv[])
 
     printf("%s opened successfully.\n", device);
 
+    modbus_set_error_recovery(mb, MODBUS_ERROR_RECOVERY_PROTOCOL);
+
     modbus_set_slave(mb, modbusID);
     modbus_set_debug(mb, debug);
 
