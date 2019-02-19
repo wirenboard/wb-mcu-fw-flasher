@@ -1,3 +1,9 @@
+wb-mcu-fw-flasher (1.0.1) stable; urgency=medium
+
+  * Handle and report Modbus errors
+
+ -- Evgeny Boger <boger@contactless.ru>  Tue, 19 Feb 2019 20:56:02 +0300
+
 wb-mcu-fw-flasher (1.0.0) stable; urgency=medium
 
   * Initial public release
