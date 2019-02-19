@@ -1,6 +1,6 @@
 DESTDIR=/
 prefix=usr
-BIN_NAME=flasher
+BIN_NAME=wb-mcu-fw-flasher
 
 ifeq ($(DEB_BUILD_GNU_TYPE),$(DEB_HOST_GNU_TYPE))
        CC=gcc
