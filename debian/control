@@ -1,0 +1,11 @@
+Source: wb-mcu-fw-flasher
+Maintainer: Evgeny Boger <boger@contactless.ru>
+Section: misc
+Priority: optional
+Standards-Version: 3.9.2
+Build-Depends: debhelper (>= 9), pkg-config, libmodbus-dev
+
+Package: wb-mcu-fw-flasher
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libmodbus5
+Description: Firmware update tool for Wiren Board Modbus devices (WB-M*)
