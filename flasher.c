@@ -97,6 +97,8 @@ int main(int argc, char *argv[])
 
     printf("%s opened successfully.\n", device);
 
+    modbus_set_error_recovery(mb, MODBUS_ERROR_RECOVERY_PROTOCOL);
+
     modbus_set_slave(mb, modbusID);
     modbus_set_debug(mb, debug);
 
@@ -115,6 +117,12 @@ int main(int argc, char *argv[])
             printf("Ok, device will jump to bootloader.\n");
         } else {
             printf("Error: %s.\n", modbus_strerror(errno));
+            if ((errno == EMBXILADD) || 
+                (errno == EMBXILVAL))  // some of ours fw report illegal data value on nonexistent register
+            {
+                fprintf(stderr, "Device probably doesn't support in-field firmware upgrade\n");
+                return -1;
+            }
             printf("May be device already in bootloader, try to send firmware...\n");
         }
         sleep(2);    // wait 2 seconds
@@ -166,16 +174,28 @@ int main(int argc, char *argv[])
     printf("\nSending info block...");
     while (errorCount < MAX_ERROR_COUNT) {
         if (modbus_write_registers(mb, INFO_BLOCK_REG_ADDRESS, INFO_BLOCK_SIZE / 2, &data[filePointer / 2]) == (INFO_BLOCK_SIZE / 2)) {
-            printf(" OK\n");
+            printf(" OK\n"); fflush(stdout);
             filePointer += INFO_BLOCK_SIZE;
             break;
         }
-        printf("\nError while sending info block: %s", modbus_strerror(errno));
+        printf("\n"); fflush(stdout);
+        fprintf(stderr, "Error while sending info block: %s\n", modbus_strerror(errno));
+        if (errno == EMBXSFAIL) {
+            fprintf(stderr, "Data format is invalid or firmware signature doesn't match the device\n");
+            return -1;
+        } else if ((errno == EMBXILADD) || 
+                   (errno == EMBXILVAL))  // some of our fws report illegal data value on nonexistent register
+        {
+            fprintf(stderr, "Not in bootloader mode? Try repeating with -j\n");
+            return -1;
+        }
+        fflush(stderr);
         sleep(3);
         errorCount++;
         if (errorCount == MAX_ERROR_COUNT) {
-            printf("\nError while sending info block.\n");
-            printf("Check connection, jump to bootloader and try again.\n");
+            fprintf(stderr, "Error while sending info block.\n");
+            fprintf(stderr, "Check connection, jump to bootloader and try again.\n");
+            fflush(stderr);
             return -1;
         }
     }
@@ -193,12 +213,18 @@ int main(int argc, char *argv[])
         fflush(stdout);
         printf("\rSending data block %u of %u...",
                (filePointer - INFO_BLOCK_SIZE) / DATA_BLOCK_SIZE + 1,
-               (filesize - INFO_BLOCK_SIZE) / DATA_BLOCK_SIZE);
+               (filesize - INFO_BLOCK_SIZE) / DATA_BLOCK_SIZE); fflush(stdout);
         if (modbus_write_registers(mb, DATA_BLOCK_REG_ADDRESS, DATA_BLOCK_SIZE / 2, &data[filePointer / 2]) == (DATA_BLOCK_SIZE / 2)) {
             filePointer += DATA_BLOCK_SIZE;
             errorCount = 0;
         } else {
-            printf("\nError while sending data block: %s\n", modbus_strerror(errno));
+            printf("\n"); fflush(stdout);
+            fprintf(stderr, "Error while sending data block: %s\n", modbus_strerror(errno));
+            if (errno == EMBXSFAIL) {
+                fprintf(stderr, "Firmware file is corrupted?\n");
+                return -1;
+            }
+            fflush(stderr);
             if (errorCount == MAX_ERROR_COUNT) {
                 filePointer += DATA_BLOCK_SIZE;
             }
