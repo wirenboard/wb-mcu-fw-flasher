@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
 {
     if (argc == 1) {
         printf("Welcome to Wiren Board flash tool.\n");
-        printf("Version: " xstr(VERSION) "\n");
+        printf("Version: " xstr(VERSION) ", libmodbus version: " LIBMODBUS_VERSION_STRING "\n\n");
         printf("Usage:\n\n");
 
         printf("Param  Description                                               Default value\n\n");
