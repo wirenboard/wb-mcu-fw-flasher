@@ -18,10 +18,14 @@
 #define HOLD_REG_CMD_UART_SETTINGS_RESET    1000
 #define HOLD_REG_CMD_EEPROM_ERASE           1001
 
+#define xstr(a) str(a)
+#define str(a) #a
+
 int main(int argc, char *argv[])
 {
     if (argc == 1) {
-        printf("Welcome to Wiren Board flash tool.\n\n");
+        printf("Welcome to Wiren Board flash tool.\n");
+        printf("Version: " xstr(VERSION) "\n");
         printf("Usage:\n\n");
 
         printf("Param  Description                                               Default value\n\n");
