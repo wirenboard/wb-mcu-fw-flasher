@@ -18,7 +18,7 @@ $(BIN_NAME): flasher.c
 	$(CC)  flasher.c  $(CC_FLAGS) `pkg-config --libs --cflags libmodbus` -o $(BIN_NAME)
 
 libmodbus:
-	git clone git@github.com:stephane/libmodbus.git
+	git clone https://github.com/stephane/libmodbus.git
 
 libmodbus/src/.libs/libmodbus.a: libmodbus
 	cd libmodbus/ && ./autogen.sh && ./configure --host i686-w64-mingw32 --enable-static=yes --without-documentation --disable-tests
