@@ -1,7 +1,7 @@
 DESTDIR=/
 prefix=usr
 BIN_NAME=wb-mcu-fw-flasher
-W32_CC=i686-w64-mingw32-gcc
+W32_CROSS=i686-w64-mingw32-
 
 VERSION := $(shell head -n 1 debian/changelog  | grep -oh -P "\(\K.*(?=\))")
 W32_BIN_NAME=wb-mcu-fw-flasher_$(VERSION).exe
@@ -25,7 +25,8 @@ libmodbus/src/.libs/libmodbus.a: libmodbus
 	make -C libmodbus 
 
 $(W32_BIN_NAME): flasher.c libmodbus/src/.libs/libmodbus.a
-	$(W32_CC) flasher.c $(CC_FLAGS) -Ilibmodbus/src  -mconsole -static  -L libmodbus/src/.libs/  -lmodbus -l ws2_32 -o $(W32_BIN_NAME)
+	$(W32_CROSS)gcc flasher.c $(CC_FLAGS) -Ilibmodbus/src  -mconsole -static  -L libmodbus/src/.libs/  -lmodbus -l ws2_32 -o $(W32_BIN_NAME)
+	$(W32_CROSS)strip --strip-unneeded $(W32_BIN_NAME)
 
 win32: $(W32_BIN_NAME)
 
