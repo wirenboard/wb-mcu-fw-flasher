@@ -25,7 +25,7 @@ libmodbus/src/.libs/libmodbus.a: libmodbus
 	make -C libmodbus 
 
 $(W32_BIN_NAME): flasher.c libmodbus/src/.libs/libmodbus.a
-	$(W32_CC) flasher.c $(CC_FLAGS) -Ilibmodbus/src  -mwindows -static  -L libmodbus/src/.libs/  -lmodbus -l ws2_32 -o $(W32_BIN_NAME)
+	$(W32_CC) flasher.c $(CC_FLAGS) -Ilibmodbus/src  -mconsole -static  -L libmodbus/src/.libs/  -lmodbus -l ws2_32 -o $(W32_BIN_NAME)
 
 win32: $(W32_BIN_NAME)
 
