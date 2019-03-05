@@ -1,3 +1,9 @@
+wb-mcu-fw-flasher (1.0.2) stable; urgency=medium
+
+  * Win32 support
+
+ -- Evgeny Boger <boger@contactless.ru>  Fri, 01 Mar 2019 19:54:32 +0300
+
 wb-mcu-fw-flasher (1.0.1) stable; urgency=medium
 
   * Handle and report Modbus errors
