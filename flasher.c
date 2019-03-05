@@ -29,7 +29,11 @@ int main(int argc, char *argv[])
         printf("Usage:\n\n");
 
         printf("Param  Description                                               Default value\n\n");
-        printf("-d     Communication device                                      -\n");
+#if defined(_WIN32)
+        printf("-d     Serial port (\"COMxx\", e.g. COM12)                       -\n");
+#else
+        printf("-d     Serial port (e.g. \"/dev/ttyRS485-1\")                    -\n");
+#endif
         printf("-f     Firmware file                                             -\n");
         printf("-a     Modbus ID                                                 1\n");
         printf("-j     Send jump to bootloader command                           -\n");
@@ -85,6 +89,29 @@ int main(int argc, char *argv[])
             break;
         }
     }
+
+#if defined(_WIN32)
+    // We expect device in a form of "COMxx". So strip leading "." and "\", and trailing ":".
+    if (device) {
+        size_t start_pos = 0, end_pos = strlen(device);
+        
+        for (start_pos=0; 
+            (start_pos < strlen(device)) && ((device[start_pos] == '.') || (device[start_pos] == '\\'));        
+            ++start_pos) {};
+        
+        for (end_pos=strlen(device) - 1; 
+            (end_pos >=0) && (device[end_pos] == ':');
+            --end_pos) {};
+        
+        char device_stripped[32] = {};
+        strncpy(device_stripped, device + start_pos, min(sizeof(device_stripped) - 1, end_pos - start_pos + 1));
+
+        char buffer[40] = "\\\\.\\";
+        strncpy(buffer + strlen(buffer), device_stripped, sizeof(buffer) - strlen(buffer));
+
+        device = buffer;        
+    }
+#endif
 
     modbus_t *mb = modbus_new_rtu(device, 9600, 'N', 8, 2);
 
