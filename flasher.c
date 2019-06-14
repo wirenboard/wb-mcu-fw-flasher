@@ -21,6 +21,10 @@
 #define xstr(a) str(a)
 #define str(a) #a
 
+const char flashingExample[] = "-d <port> -f <firmware.wbfw>";
+const char formatSettingsExample[] = "-d <port> -j -u";
+const char casualUsage[] = "-d <port> -a <modbus_addr> -j -u -f <firmware.wbfw>";
+
 int main(int argc, char *argv[])
 {
     if (argc == 1) {
@@ -42,8 +46,9 @@ int main(int argc, char *argv[])
         printf("-r     Jump to bootloader register address                       129\n");
         printf("-D     Debug mode                                                -\n");
 
-        printf("\nMinimal example: ./flasher -d /dev/ttyUSB0 -f firmware.wbfw\n\n");
-
+        printf("\nMinimal flashing example:\n%s %s\n", argv[0], flashingExample);
+        printf("Minimal format uart settings example:\n%s %s\n", argv[0], formatSettingsExample);
+        printf("Flashing running device example:\n%s %s\n", argv[0], casualUsage);
         return 0;
     }
 
@@ -56,6 +61,8 @@ int main(int argc, char *argv[])
     int   eepromFormatCmd = 0;
     int   jumpReg  = HOLD_REG_JUMP_TO_BOOTLOADER;
     int   debug    = 0;
+    int inBootloader = 0;
+    int   withoutFlashing = 1;
 
     int c;
     while ((c = getopt(argc, argv, "d:f:a:juer:D")) != -1) {
@@ -65,9 +72,14 @@ int main(int argc, char *argv[])
             break;
         case 'f':
             fileName = optarg;
+            withoutFlashing = 0;
             break;
         case 'a':
             sscanf(optarg, "%d", &modbusID);
+            if (modbusID > 247 || modbusID < 1) {
+                fprintf (stderr, "Incorrect SlaveId!\nChoose from %d to %d\n\n", 1, 247);
+                return -1;
+            }
             break;
         case 'j':
             jumpCmd = 1;
@@ -98,7 +110,7 @@ int main(int argc, char *argv[])
         for (start_pos=0; 
             (start_pos < strlen(device)) && ((device[start_pos] == '.') || (device[start_pos] == '\\'));        
             ++start_pos) {};
-        
+
         for (end_pos=strlen(device) - 1; 
             (end_pos >=0) && (device[end_pos] == ':');
             --end_pos) {};
@@ -112,6 +124,11 @@ int main(int argc, char *argv[])
         device = buffer;        
     }
 #endif
+
+    if (device == NULL) {
+        printf("A port should be specified!\n%s -d <port>\n", argv[0]);
+        return 0;
+    }
 
     modbus_t *mb = modbus_new_rtu(device, 9600, 'N', 8, 2);
 
@@ -146,6 +163,7 @@ int main(int argc, char *argv[])
         printf("Send jump to bootloader command and wait 2 seconds...\n");
         if (modbus_write_register(mb, jumpReg, 1) == 1) {
             printf("Ok, device will jump to bootloader.\n");
+            inBootloader = 1;
         } else {
             printf("Error: %s.\n", modbus_strerror(errno));
             if ((errno == EMBXILADD) || 
@@ -163,6 +181,7 @@ int main(int argc, char *argv[])
         printf("Send reset UART settings and modbus address command...\n");
         if (modbus_write_register(mb, HOLD_REG_CMD_UART_SETTINGS_RESET, 1) == 1) {
             printf("Ok.\n");
+            inBootloader = 1;
         } else {
             printf("Error: %s.\n", modbus_strerror(errno));
         }
@@ -173,10 +192,20 @@ int main(int argc, char *argv[])
         printf("Send format EEPROM command...\n");
         if (modbus_write_register(mb, HOLD_REG_CMD_EEPROM_ERASE, 1) == 1) {
             printf("Ok.\n");
+            inBootloader = 1;
         } else {
             printf("Error: %s.\n", modbus_strerror(errno));
         }
         sleep(1);    // wait 1 second
+    }
+
+    if (withoutFlashing) {
+        if (inBootloader) {
+            printf ("Device is in Bootloader now! To flash FW run\n%s %s\n", argv[0], flashingExample);
+        } else {
+            printf("To flash FW on running device, run\n%s %s\n", argv[0], casualUsage);
+        }
+        return 0;
     }
 
     FILE *file = fopen(fileName, "rb");
