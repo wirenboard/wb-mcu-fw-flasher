@@ -25,6 +25,20 @@ const char flashingExample[] = "-d <port> -f <firmware.wbfw>";
 const char formatSettingsExample[] = "-d <port> -j -u";
 const char casualUsage[] = "-d <port> -a <modbus_addr> -j -u -f <firmware.wbfw>";
 
+struct modbusParams {
+    int baudrate;
+    char parity;
+    int databits;
+    int stopbits;
+} modbusParams;
+
+const int allowedBaudrates[] = {1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200};
+const int allowedStopBits[] = {1, 2};
+const char allowedParity[] = {'N', 'E', 'O'};
+
+int ensureIntIn(int param, const int array[], unsigned int arrayLen);
+int ensureCharIn(char param, const char array[], unsigned int arrayLen);
+
 int main(int argc, char *argv[])
 {
     if (argc == 1) {
@@ -45,12 +59,29 @@ int main(int argc, char *argv[])
         printf("-e     Format EEPROM (except device signature)                   -\n");
         printf("-r     Jump to bootloader register address                       129\n");
         printf("-D     Debug mode                                                -\n");
+        printf("-b     Baud Rate (serial port speed)                             9600\n");
+        printf("-p     Parity                                                    N\n");
+        printf("-s     Stopbits                                                  2\n");
 
         printf("\nMinimal flashing example:\n%s %s\n", argv[0], flashingExample);
         printf("Minimal format uart settings example:\n%s %s\n", argv[0], formatSettingsExample);
         printf("Flashing running device example:\n%s %s\n", argv[0], casualUsage);
         return 0;
-    }
+    };
+
+    struct modbusParams bootloaderParams = { //Bootloader has fixed uart settings
+        .baudrate = 9600,
+        .parity = 'N',
+        .databits = 8,
+        .stopbits = 2
+    };
+
+    struct modbusParams deviceParams = { //To send -j to device. Filled from user input
+        .baudrate = 9600,
+        .parity = 'N',
+        .databits = 8,
+        .stopbits = 2
+    };
 
     // Default values
     char *device   = NULL;
@@ -61,23 +92,21 @@ int main(int argc, char *argv[])
     int   eepromFormatCmd = 0;
     int   jumpReg  = HOLD_REG_JUMP_TO_BOOTLOADER;
     int   debug    = 0;
-    int inBootloader = 0;
-    int   withoutFlashing = 1;
+    int   inBootloader = 0;
 
     int c;
-    while ((c = getopt(argc, argv, "d:f:a:juer:D")) != -1) {
+    while ((c = getopt(argc, argv, "d:f:a:juer:Db:p:s:")) != -1) {
         switch (c) {
         case 'd':
             device = optarg;
             break;
         case 'f':
             fileName = optarg;
-            withoutFlashing = 0;
             break;
         case 'a':
             sscanf(optarg, "%d", &modbusID);
-            if (modbusID > 247 || modbusID < 1) {
-                fprintf (stderr, "Incorrect SlaveId!\nChoose from %d to %d\n\n", 1, 247);
+            if (modbusID > 247 || modbusID < 0) {
+                printf("Incorrect SlaveId!\nChoose from %d to %d\n\n", 0, 247);
                 return -1;
             }
             break;
@@ -96,6 +125,30 @@ int main(int argc, char *argv[])
         case 'D':
             debug = 1;
             break;
+        case 'b':
+            sscanf(optarg, "%d", &deviceParams.baudrate);
+            if (ensureIntIn(deviceParams.baudrate, allowedBaudrates, sizeof(allowedBaudrates))) {
+                break;
+            } else {
+                printf("Baudrate (-b <%d>) is not supported!\n", deviceParams.baudrate);
+                return -1;
+            };
+        case 'p':
+            sscanf(optarg, "%c", &deviceParams.parity);
+            if (ensureCharIn(deviceParams.parity, allowedParity, sizeof(allowedParity))) {
+                break;
+            } else {
+                printf("Parity (-p <%c>) is not supported!\n", deviceParams.parity);
+                return -1;
+            };
+        case 's':
+            sscanf(optarg, "%d", &deviceParams.stopbits);
+            if (ensureIntIn(deviceParams.stopbits, allowedStopBits, sizeof(allowedStopBits))) {
+                break;
+            } else {
+                printf ("Stopbits (-s <%d>) are not supported!\n", deviceParams.stopbits);
+                return -1;
+            };
         default:
             printf("Parameters error.\n");
             break;
@@ -130,7 +183,61 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    modbus_t *mb = modbus_new_rtu(device, 9600, 'N', 8, 2);
+    //Connecting on device's params
+    modbus_t *mb_connection = modbus_new_rtu(device, deviceParams.baudrate, deviceParams.parity, deviceParams.databits, deviceParams.stopbits);
+
+    if (mb_connection == NULL) {
+        fprintf(stderr, "Unknown error.\n");
+        return -1;
+    }
+
+    if (modbus_connect(mb_connection) != 0) {
+        fprintf(stderr, "Connection failed: %s\n", modbus_strerror(errno));
+        modbus_free(mb_connection);
+        return -1;
+    }
+
+    printf("%s opened successfully.\n", device);
+
+    modbus_set_error_recovery(mb_connection, MODBUS_ERROR_RECOVERY_PROTOCOL);
+
+    modbus_set_slave(mb_connection, modbusID);
+    modbus_set_debug(mb_connection, debug);
+
+    struct timeval response_timeout;
+    response_timeout.tv_sec = 10;
+    response_timeout.tv_usec = 0;
+    #if LIBMODBUS_VERSION_CHECK(3, 1, 2)
+        modbus_set_response_timeout(mb_connection, response_timeout.tv_sec, response_timeout.tv_usec);
+    #else
+        modbus_set_response_timeout(mb, &response_timeout);
+    #endif
+
+    if (jumpCmd) {
+        printf("Send jump to bootloader command and wait 2 seconds...\n");
+        if (modbus_write_register(mb_connection, jumpReg, 1) == 1) {
+            printf("Ok, device will jump to bootloader.\n");
+            inBootloader = 1;
+        } else {
+            printf("Error: %s.\n", modbus_strerror(errno));
+            if ((errno == EMBXILADD) || 
+                (errno == EMBXILVAL))  // some of ours fw report illegal data value on nonexistent register
+            {
+                fprintf(stderr, "Device probably doesn't support in-field firmware upgrade\n");
+                return -1;
+            }
+            //Devices firmwares have bug: writing to  HOLD_REG_JUMP_TO_BOOTLOADER at low BDs causes modbus timeout error.
+            //"1" in HOLD_REG_JUMP_TO_BOOTLOADER causes reboot to bootloader, and device have ~5ms to send a responce
+            printf("May be device already in bootloader, check status led\n");
+        }
+        sleep(2);    // wait 2 seconds
+    }
+
+    modbus_close(mb_connection);
+    modbus_free(mb_connection);
+
+    //Connecting on Bootloader's params
+    modbus_t *mb = modbus_new_rtu(device, bootloaderParams.baudrate, bootloaderParams.parity, bootloaderParams.databits, bootloaderParams.stopbits);
 
     if (mb == NULL) {
         fprintf(stderr, "Unknown error.\n");
@@ -149,33 +256,6 @@ int main(int argc, char *argv[])
 
     modbus_set_slave(mb, modbusID);
     modbus_set_debug(mb, debug);
-
-    struct timeval response_timeout;
-    response_timeout.tv_sec = 10;
-    response_timeout.tv_usec = 0;
-    #if LIBMODBUS_VERSION_CHECK(3, 1, 2)
-        modbus_set_response_timeout(mb, response_timeout.tv_sec, response_timeout.tv_usec);
-    #else
-        modbus_set_response_timeout(mb, &response_timeout);
-    #endif
-
-    if (jumpCmd) {
-        printf("Send jump to bootloader command and wait 2 seconds...\n");
-        if (modbus_write_register(mb, jumpReg, 1) == 1) {
-            printf("Ok, device will jump to bootloader.\n");
-            inBootloader = 1;
-        } else {
-            printf("Error: %s.\n", modbus_strerror(errno));
-            if ((errno == EMBXILADD) || 
-                (errno == EMBXILVAL))  // some of ours fw report illegal data value on nonexistent register
-            {
-                fprintf(stderr, "Device probably doesn't support in-field firmware upgrade\n");
-                return -1;
-            }
-            printf("May be device already in bootloader, try to send firmware...\n");
-        }
-        sleep(2);    // wait 2 seconds
-    }
 
     if (uartResetCmd) {
         printf("Send reset UART settings and modbus address command...\n");
@@ -199,7 +279,7 @@ int main(int argc, char *argv[])
         sleep(1);    // wait 1 second
     }
 
-    if (withoutFlashing) {
+    if (fileName == NULL) {
         if (inBootloader) {
             printf ("Device is in Bootloader now! To flash FW run\n%s %s\n", argv[0], flashingExample);
         } else {
@@ -304,4 +384,27 @@ int main(int argc, char *argv[])
     free(data);
 
     return 0;
+}
+
+int ensureIntIn(int param, const int array[], unsigned int arrayLen) {
+    int valueIsIn = 0;
+    for (unsigned int i = 0; i < arrayLen; i += 1){
+        if (param == array[i]){
+            valueIsIn = 1;
+            break;
+        }
+    }
+    return valueIsIn;
+}
+
+
+int ensureCharIn(char param, const char array[], unsigned int arrayLen) {
+    int valueIsIn = 0;
+    for (unsigned int i = 0; i < arrayLen; i += 1){
+        if (param == array[i]){
+            valueIsIn = 1;
+            break;
+        }
+    }
+    return valueIsIn;
 }
