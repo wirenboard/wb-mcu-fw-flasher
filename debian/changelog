@@ -1,3 +1,9 @@
+wb-mcu-fw-flasher (1.0.3) stable; urgency=medium
+
+  * Supports jump to bootloader via custom uart settings
+
+ -- Vladimir Romanov <v.romanov@wirenboard.ru>  Mon, 17 Jun 2019 10:11:05 +0300
+
 wb-mcu-fw-flasher (1.0.2) stable; urgency=medium
 
   * Win32 support
