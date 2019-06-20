@@ -109,10 +109,6 @@ int main(int argc, char *argv[])
             break;
         case 'a':
             sscanf(optarg, "%d", &modbusID);
-            if (modbusID > 247 || modbusID < 0) {
-                printf("Incorrect SlaveId!\nChoose from %d to %d\n\n", 0, 247);
-                exit(EXIT_FAILURE);
-            }
             break;
         case 'j':
             jumpCmd = 1;
@@ -389,7 +385,16 @@ modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAd
 
     modbus_set_error_recovery(mb_connection, MODBUS_ERROR_RECOVERY_PROTOCOL);
 
-    modbus_set_slave(mb_connection, slaveAddr);
+    if (modbus_set_slave(mb_connection, slaveAddr) != 0) {
+        if (errno == EINVAL) {
+            fprintf(stderr, "Invalid slave id!\nChoose from 0 to 247\n");
+        } else {
+            fprintf(stderr, "Unknown error on setting slave id.\n");
+        }
+        modbus_free(mb_connection);
+        exit(EXIT_FAILURE);
+    };
+
     modbus_flush(mb_connection);
     modbus_set_debug(mb_connection, debug);
     return mb_connection;
