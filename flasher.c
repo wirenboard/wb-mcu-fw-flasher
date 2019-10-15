@@ -5,6 +5,7 @@
 #include <getopt.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/time.h>
 
 #define INFO_BLOCK_SIZE             32
 #define INFO_BLOCK_REG_ADDRESS      0x1000
@@ -50,17 +51,17 @@ int main(int argc, char *argv[])
         printf("Version: " xstr(VERSION) ", libmodbus version: " LIBMODBUS_VERSION_STRING "\n\n");
         printf("Usage:\n\n");
 
-        printf("Param  Description                                               Default value\n\n");
+        printf("Param  Description                                         Default value\n\n");
 #if defined(_WIN32)
         printf("-d     Serial port (\"COMxx\", e.g. COM12)                         -\n");
 #else
         printf("-d     Serial port (e.g. \"/dev/ttyRS485-1\")                      -\n");
 #endif
         printf("-f     Firmware file                                             -\n");
-        printf("-a     Modbus ID                                                 1\n");
+        printf("-a     Modbus ID (slave addr)                                    1\n");
         printf("-j     Send jump to bootloader command                           -\n");
         printf("-u     Reset UART setting and MODBUS address to factory default  -\n");
-        printf("-e     Format EEPROM (except device signature)                   -\n");
+        printf("-e     Reset ALL settings to factory default                     -\n");
         printf("-r     Jump to bootloader register address                       129\n");
         printf("-D     Debug mode                                                -\n");
         printf("-b     Baud Rate (serial port speed)                             9600\n");
