@@ -5,6 +5,7 @@
 #include <getopt.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/time.h>
 
 #define INFO_BLOCK_SIZE             32
 #define INFO_BLOCK_REG_ADDRESS      0x1000
