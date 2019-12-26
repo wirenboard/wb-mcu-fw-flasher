@@ -48,9 +48,10 @@ int main(int argc, char *argv[])
     int   eepromFormatCmd = 0;
     int   jumpReg  = HOLD_REG_JUMP_TO_BOOTLOADER;
     int   debug    = 0;
+    int   baudrate = 9600;
 
     int c;
-    while ((c = getopt(argc, argv, "d:f:a:juer:D")) != -1) {
+    while ((c = getopt(argc, argv, "d:f:a:b:juer:D")) != -1) {
         switch (c) {
         case 'd':
             device = optarg;
@@ -60,6 +61,9 @@ int main(int argc, char *argv[])
             break;
         case 'a':
             sscanf(optarg, "%d", &modbusID);
+            break;
+        case 'b':
+            sscanf(optarg, "%d", &baudrate);
             break;
         case 'j':
             jumpCmd = 1;
@@ -82,7 +86,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    modbus_t *mb = modbus_new_rtu(device, 9600, 'N', 8, 2);
+    modbus_t *mb = modbus_new_rtu(device, baudrate, 'N', 8, 2);
 
     if (mb == NULL) {
         fprintf(stderr, "Unknown error.\n");
