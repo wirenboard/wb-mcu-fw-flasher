@@ -33,7 +33,7 @@ struct UartSettings {
     int stopbits;
 } UartSettings;
 
-const int allowedBaudrates[] = {1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200};
+const int allowedBaudrates[] = {1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400};
 const int allowedStopBits[] = {1, 2};
 const char allowedParity[] = {'N', 'E', 'O'};
 
@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
         return 0;
     };
 
-    struct UartSettings bootloaderParams = { //Bootloader has fixed uart settings
+    struct UartSettings bootloaderParams = { //Bootloader has fast flash mode with high baudrate
         .baudrate = 9600,
         .parity = 'N',
         .databits = 8,
@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
     int   inBootloader = 0;
 
     int c;
-    while ((c = getopt(argc, argv, "d:f:a:juer:Db:p:s:")) != -1) {
+    while ((c = getopt(argc, argv, "d:f:a:juer:Db:p:s:B:")) != -1) {
         switch (c) {
         case 'd':
             device = optarg;
@@ -132,6 +132,14 @@ int main(int argc, char *argv[])
                 break;
             } else {
                 printf("Baudrate (-b <%d>) is not supported!\n", deviceParams.baudrate);
+                exit(EXIT_FAILURE);
+            };
+        case 'B':
+            sscanf(optarg, "%d", &bootloaderParams.baudrate);
+            if (ensureIntIn(bootloaderParams.baudrate, allowedBaudrates, sizeof(allowedBaudrates))) {
+                break;
+            } else {
+                printf("Baudrate (-B <%d>) is not supported!\n", bootloaderParams.baudrate);
                 exit(EXIT_FAILURE);
             };
         case 'p':
