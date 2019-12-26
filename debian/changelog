@@ -1,3 +1,9 @@
+wb-mcu-fw-flasher (1.0.5) stable; urgency=medium
+
+  * factory first time fast flashing support. baudrate select option -B
+
+ -- Nikita Kulikov <n.kulikov@wirenboard.ru>  Thu, 26 Dec 2019 21:04:49 +0300
+
 wb-mcu-fw-flasher (1.0.4) stable; urgency=medium
 
   * hide technical details from usage output
