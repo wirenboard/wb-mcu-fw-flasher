@@ -1,3 +1,9 @@
+wb-mcu-fw-flasher (1.0.6) stable; urgency=medium
+
+  * Added custom response timeout option (-t)
+
+ -- Vladimir Romanov <v.romanov@wirenboard.ru>  Sun, 3 May 2020 20:40:10 +0300
+
 wb-mcu-fw-flasher (1.0.5) stable; urgency=medium
 
   * factory first time fast flashing support. baudrate select option -B
