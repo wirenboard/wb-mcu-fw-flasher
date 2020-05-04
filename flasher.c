@@ -42,7 +42,9 @@ int ensureCharIn(char param, const char array[], unsigned int arrayLen);
 
 modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAddr, int debug);
 
-void setResponceTimeout(struct timeval timeoutStruct, modbus_t *modbusContext);
+struct timeval parseResponseTimeout(float timeout_sec);
+
+void setResponseTimeout(struct timeval timeoutStruct, modbus_t *modbusContext);
 
 int main(int argc, char *argv[])
 {
@@ -67,6 +69,7 @@ int main(int argc, char *argv[])
         printf("-b     Baud Rate (serial port speed)                             9600\n");
         printf("-p     Parity                                                    N\n");
         printf("-s     Stopbits                                                  2\n");
+        printf("-t     Slave response timeout (in seconds)                       10.0\n");
 
         printf("\nMinimal flashing example:\n%s %s\n", argv[0], flashingExample);
         printf("Minimal format uart settings example:\n%s %s\n", argv[0], formatSettingsExample);
@@ -98,9 +101,11 @@ int main(int argc, char *argv[])
     int   jumpReg  = HOLD_REG_JUMP_TO_BOOTLOADER;
     int   debug    = 0;
     int   inBootloader = 0;
+    float responseTimeout = 10.0f; // Seconds
+
 
     int c;
-    while ((c = getopt(argc, argv, "d:f:a:juer:Db:p:s:B:")) != -1) {
+    while ((c = getopt(argc, argv, "d:f:a:t:juer:Db:p:s:B:")) != -1) {
         switch (c) {
         case 'd':
             device = optarg;
@@ -111,6 +116,14 @@ int main(int argc, char *argv[])
         case 'a':
             sscanf(optarg, "%d", &modbusID);
             break;
+        case 't':
+            sscanf(optarg, "%f", &responseTimeout);
+            if (responseTimeout >= 0) {
+                break;
+            } else {
+                printf("Response timeout (-t <%f>) could not be less zero!\n", responseTimeout);
+                exit(EXIT_FAILURE);
+            };
         case 'j':
             jumpCmd = 1;
             break;
@@ -168,22 +181,22 @@ int main(int argc, char *argv[])
     // We expect device in a form of "COMxx". So strip leading "." and "\", and trailing ":".
     if (device) {
         size_t start_pos = 0, end_pos = strlen(device);
-        
-        for (start_pos=0; 
-            (start_pos < strlen(device)) && ((device[start_pos] == '.') || (device[start_pos] == '\\'));        
+
+        for (start_pos=0;
+            (start_pos < strlen(device)) && ((device[start_pos] == '.') || (device[start_pos] == '\\'));
             ++start_pos) {};
 
-        for (end_pos=strlen(device) - 1; 
+        for (end_pos=strlen(device) - 1;
             (end_pos >=0) && (device[end_pos] == ':');
             --end_pos) {};
-        
+
         char device_stripped[32] = {};
         strncpy(device_stripped, device + start_pos, min(sizeof(device_stripped) - 1, end_pos - start_pos + 1));
 
         char buffer[40] = "\\\\.\\";
         strncpy(buffer + strlen(buffer), device_stripped, sizeof(buffer) - strlen(buffer));
 
-        device = buffer;        
+        device = buffer;
     }
 #endif
 
@@ -197,10 +210,8 @@ int main(int argc, char *argv[])
 
     printf("%s opened successfully.\n", device);
 
-    struct timeval response_timeout;
-    response_timeout.tv_sec = 10;
-    response_timeout.tv_usec = 0;
-    setResponceTimeout(response_timeout, device_params_connection);
+    struct timeval response_timeout = parseResponseTimeout(responseTimeout);
+    setResponseTimeout(response_timeout, device_params_connection);
 
     if (jumpCmd) {
         printf("Send jump to bootloader command and wait 2 seconds...\n");
@@ -209,7 +220,7 @@ int main(int argc, char *argv[])
             inBootloader = 1;
         } else {
             printf("Error: %s.\n", modbus_strerror(errno));
-            if ((errno == EMBXILADD) || 
+            if ((errno == EMBXILADD) ||
                 (errno == EMBXILVAL))  // some of ours fw report illegal data value on nonexistent register
             {
                 fprintf(stderr, "Device probably doesn't support in-field firmware upgrade\n");
@@ -228,7 +239,7 @@ int main(int argc, char *argv[])
     //Connecting on Bootloader's params
     modbus_t *bootloader_params_connection = initModbus(device, bootloaderParams, modbusID, debug);
 
-    setResponceTimeout(response_timeout, bootloader_params_connection);
+    setResponseTimeout(response_timeout, bootloader_params_connection);
 
     if (uartResetCmd) {
         printf("Send reset UART settings and modbus address command...\n");
@@ -296,7 +307,7 @@ int main(int argc, char *argv[])
         if (errno == EMBXSFAIL) {
             fprintf(stderr, "Data format is invalid or firmware signature doesn't match the device\n");
             exit(EXIT_FAILURE);
-        } else if ((errno == EMBXILADD) || 
+        } else if ((errno == EMBXILADD) ||
                    (errno == EMBXILVAL))  // some of our fws report illegal data value on nonexistent register
         {
             fprintf(stderr, "Not in bootloader mode? Try repeating with -j\n");
@@ -315,7 +326,7 @@ int main(int argc, char *argv[])
 
     response_timeout.tv_sec = 1;
     response_timeout.tv_usec = 0;
-    setResponceTimeout(response_timeout, bootloader_params_connection);
+    setResponseTimeout(response_timeout, bootloader_params_connection);
 
     printf("\n");
     while (filePointer < filesize) {
@@ -409,7 +420,16 @@ modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAd
     return mb_connection;
 }
 
-void setResponceTimeout(struct timeval timeoutStruct, modbus_t *modbusContext){
+struct timeval parseResponseTimeout(float timeout_sec) {
+    long decimal_part = (long)timeout_sec;
+    float fract_part = timeout_sec - decimal_part;
+    struct timeval response_timeout;
+    response_timeout.tv_sec = decimal_part;
+    response_timeout.tv_usec = (long)(fract_part * 1000000); // Microseconds
+    return response_timeout;
+}
+
+void setResponseTimeout(struct timeval timeoutStruct, modbus_t *modbusContext){
     #if LIBMODBUS_VERSION_CHECK(3, 1, 2)
         modbus_set_response_timeout(modbusContext, timeoutStruct.tv_sec, timeoutStruct.tv_usec);
     #else
