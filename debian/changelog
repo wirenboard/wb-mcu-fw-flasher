@@ -1,3 +1,9 @@
+wb-mcu-fw-flasher (1.0.7) stable; urgency=medium
+
+  * Closing port after unsuccessful flash
+
+ -- Vladimir Romanov <v.romanov@wirenboard.ru>  Tue, 12 May 2020 15:52:11 +0300
+
 wb-mcu-fw-flasher (1.0.6) stable; urgency=medium
 
   * Added custom response timeout option (-t)
