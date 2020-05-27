@@ -42,6 +42,8 @@ int ensureCharIn(char param, const char array[], unsigned int arrayLen);
 
 modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAddr, int debug);
 
+void deinitModbus(modbus_t *modbusConnection);
+
 struct timeval parseResponseTimeout(float timeout_sec);
 
 void setResponseTimeout(struct timeval timeoutStruct, modbus_t *modbusContext);
@@ -224,6 +226,7 @@ int main(int argc, char *argv[])
                 (errno == EMBXILVAL))  // some of ours fw report illegal data value on nonexistent register
             {
                 fprintf(stderr, "Device probably doesn't support in-field firmware upgrade\n");
+                deinitModbus(device_params_connection);
                 exit(EXIT_FAILURE);
             }
             //Devices firmwares have bug: writing to  HOLD_REG_JUMP_TO_BOOTLOADER at low BDs causes modbus timeout error.
@@ -233,8 +236,7 @@ int main(int argc, char *argv[])
         sleep(2);    // wait 2 seconds
     }
 
-    modbus_close(device_params_connection);
-    modbus_free(device_params_connection);
+    deinitModbus(device_params_connection);
 
     //Connecting on Bootloader's params
     modbus_t *bootloader_params_connection = initModbus(device, bootloaderParams, modbusID, debug);
@@ -275,6 +277,7 @@ int main(int argc, char *argv[])
     FILE *file = fopen(fileName, "rb");
     if (file == NULL) {
         fprintf(stderr, "Error while opening firmware file: %s\n", strerror(errno));
+        deinitModbus(bootloader_params_connection);
         exit(EXIT_FAILURE);
     }
 
@@ -306,11 +309,13 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Error while sending info block: %s\n", modbus_strerror(errno));
         if (errno == EMBXSFAIL) {
             fprintf(stderr, "Data format is invalid or firmware signature doesn't match the device\n");
+            deinitModbus(bootloader_params_connection);
             exit(EXIT_FAILURE);
         } else if ((errno == EMBXILADD) ||
                    (errno == EMBXILVAL))  // some of our fws report illegal data value on nonexistent register
         {
             fprintf(stderr, "Not in bootloader mode? Try repeating with -j\n");
+            deinitModbus(bootloader_params_connection);
             exit(EXIT_FAILURE);
         }
         fflush(stderr);
@@ -320,6 +325,7 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Error while sending info block.\n");
             fprintf(stderr, "Check connection, jump to bootloader and try again.\n");
             fflush(stderr);
+            deinitModbus(bootloader_params_connection);
             exit(EXIT_FAILURE);
         }
     }
@@ -342,6 +348,7 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Error while sending data block: %s\n", modbus_strerror(errno));
             if (errno == EMBXSFAIL) {
                 fprintf(stderr, "Firmware file is corrupted?\n");
+                deinitModbus(bootloader_params_connection);
                 exit(EXIT_FAILURE);
             }
             fflush(stderr);
@@ -349,6 +356,7 @@ int main(int argc, char *argv[])
                 filePointer += DATA_BLOCK_SIZE;
             }
             if (errorCount >= MAX_ERROR_COUNT * 2) {
+                deinitModbus(bootloader_params_connection);
                 exit(EXIT_FAILURE);
             }
             errorCount++;
@@ -357,8 +365,7 @@ int main(int argc, char *argv[])
 
     printf(" OK.\n\nAll done!\n");
 
-    modbus_close(bootloader_params_connection);
-    modbus_free(bootloader_params_connection);
+    deinitModbus(bootloader_params_connection);
 
     fclose(file);
     free(data);
@@ -418,6 +425,11 @@ modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAd
     modbus_flush(mb_connection);
     modbus_set_debug(mb_connection, debug);
     return mb_connection;
+}
+
+void deinitModbus(modbus_t *modbusConnection){
+    modbus_close(modbusConnection);
+    modbus_free(modbusConnection);
 }
 
 struct timeval parseResponseTimeout(float timeout_sec) {
