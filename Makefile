@@ -15,7 +15,7 @@ endif
 CC_FLAGS=-Wall -std=c99 -DVERSION=$(VERSION)
 
 $(BIN_NAME): flasher.c
-	$(CC)  flasher.c  $(CC_FLAGS) `pkg-config --libs --cflags libmodbus` -o $(BIN_NAME)
+	$(CC)  flasher.c  $(CC_FLAGS) -I/usr/include/modbus -lmodbus -o $(BIN_NAME)
 
 libmodbus:
 	git clone https://github.com/stephane/libmodbus.git
