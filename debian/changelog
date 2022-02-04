@@ -1,3 +1,9 @@
+wb-mcu-fw-flasher (1.0.8) stable; urgency=medium
+
+  * DEBUG: reduced flashing chunk size
+
+ -- Vladimir Romanov <v.romanov@wirenboard.ru>  Sat, 05 Feb 2022 02:23:32 +0300
+
 wb-mcu-fw-flasher (1.0.7) stable; urgency=medium
 
   * Closing port after unsuccessful flash

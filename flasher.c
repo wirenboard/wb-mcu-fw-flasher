@@ -10,7 +10,7 @@
 #define INFO_BLOCK_SIZE             32
 #define INFO_BLOCK_REG_ADDRESS      0x1000
 
-#define DATA_BLOCK_SIZE             136
+#define DATA_BLOCK_SIZE             34
 #define DATA_BLOCK_REG_ADDRESS      0x2000
 
 #define MAX_ERROR_COUNT             3
