@@ -80,7 +80,7 @@ Modbus-адрес для прошивки в режиме bootloader'а след
     программы.
 2.  Прошивать устройства можно по широковещательному адресу 0. Это менее
     предпочтительный способ при рекомендации его конечным пользователям.
-    
+
 3.  ~~[удалено]~~
 
 В режиме bootloader поддерживается ограниченный набор Modbus-команд.
@@ -90,7 +90,7 @@ Write Single Register (0x06) и Write Multiple Registers (0x10). **Адреса
 
 #### Этапы прошивки:
 
-* Команда `BEGIN`: (запись `16` регистров начиная с адреса `0x1000` командой `0x10`) 
+* Команда `BEGIN`: (запись `16` регистров начиная с адреса `0x1000` командой `0x10`)
 * Команда `DATA`: (запись `68` регистров начиная с адреса `0x2000` командой `0x10`)
 
 
@@ -130,15 +130,15 @@ input-регистры `330-337`
 утилитой wb-mcu-fw-flasher (этот репозиторий)
 Установка пакета
 
-``` 
+```
   apt-get update
-  apt-get install wb-mcu-fw-flasher 
+  apt-get install wb-mcu-fw-flasher
 ```
 
 Опции запуска:
 
-``` 
-  root@wirenboard-AEYANPGT:/etc/apt/sources.list.d# wb-mcu-fw-flasher 
+```
+  root@wirenboard-AEYANPGT:/etc/apt/sources.list.d# wb-mcu-fw-flasher
   Welcome to Wiren Board flash tool.
   Usage:
   Param  Description                                               Default value
@@ -170,9 +170,9 @@ input-регистры `330-337`
 Если прошивка была записана ранее, то сигнатуру устройства можно
 прочесть командой
 
-``` 
+```
     export mbusaddr=1;  echo  -e `modbus_client --debug -mrtu -pnone -s2 /dev/ttyRS485-1 -a$mbusaddr -t0x03 -r290 -c 12 | grep Data | sed -e 's/0x00/\x/g' -e 's/Data://' -e 's/s//g'`|  xxd -r -p && echo ''
-    
+
 ```
 
 Получите сигнатуру устройства, например, **wbmr6c**
@@ -182,14 +182,14 @@ WB-MR-MR6C\_MCU3\_3\_ULN2003\_1.9.4\_feature-bootloader\_1.9.3\_5932761.wbfw
 
 Прошейте устройство командой:
 
-``` 
+```
    wb-mcu-fw-flasher -j -d /dev/ttyRS485-1 -a 1 -f WB-MR-MR6C_MCU3_3_ULN2003_1.9.4_feature-bootloader_1.9.3_5932761.wbfw
 ```
 
 Успешный процесс прошивки выглядит следующим образом:
 
-``` 
-   wb-mcu-fw-flasher -j -d /dev/ttyRS485-1 -a 1 -f WB-MR-MR6C_MCU3_3_ULN2003_1.9.4_feature-bootloader_1.9.3_5932761.wbfw          
+```
+   wb-mcu-fw-flasher -j -d /dev/ttyRS485-1 -a 1 -f WB-MR-MR6C_MCU3_3_ULN2003_1.9.4_feature-bootloader_1.9.3_5932761.wbfw
    /dev/ttyRS485-1 opened successfully.
    Send jump to bootloader command and wait 2 seconds...
    Error: Connection timed out.
