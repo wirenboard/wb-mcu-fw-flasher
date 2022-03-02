@@ -291,9 +291,12 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Error while reading firmware file: %s\n", strerror(errno));
     }
 
+    fprintf(stdout, "FW regs:\n");
     for (unsigned int i = 0; i < filesize / 2; i++) {
         data[i] = ((data[i] & 0xFF) << 8) | ((data[i] & 0xFF00) >> 8);
+        fprintf(stdout, "%d ", data[i]);
     }
+    fprintf(stdout, "\n");
 
     int errorCount = 0;
     unsigned int filePointer = 0;
