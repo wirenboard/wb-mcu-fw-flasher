@@ -3,9 +3,9 @@ Maintainer: Evgeny Boger <boger@contactless.ru>
 Section: misc
 Priority: optional
 Standards-Version: 3.9.2
-Build-Depends: debhelper (>= 9), pkg-config, libmodbus-dev
+Build-Depends: debhelper (>= 9), pkg-config
 
 Package: wb-mcu-fw-flasher
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, libmodbus5
+Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Firmware update tool for Wiren Board Modbus devices (WB-M*)

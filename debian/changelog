@@ -1,3 +1,9 @@
+wb-mcu-fw-flasher (1.0.8) stable; urgency=medium
+
+  * libmodbus: skip noise bytes (0x00) on receive after command
+
+ -- Nikita Maslov <nikita.maslov@wirenboard.ru>  Thu, 03 Mar 2022 18:11:15 +0300
+
 wb-mcu-fw-flasher (1.0.7) stable; urgency=medium
 
   * Closing port after unsuccessful flash
