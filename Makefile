@@ -1,7 +1,7 @@
 DESTDIR=/
 prefix=usr
 BIN_NAME=wb-mcu-fw-flasher
-W32_CROSS=i686-w64-mingw32-
+W32_CROSS=i686-w64-mingw32
 
 VERSION := $(shell head -n 1 debian/changelog  | grep -oh -P "\(\K.*(?=\))")
 W32_BIN_NAME=wb-mcu-fw-flasher_$(VERSION).exe
@@ -14,19 +14,26 @@ endif
 
 CC_FLAGS=-Wall -std=c99 -DVERSION=$(VERSION)
 
-$(BIN_NAME): flasher.c
-	$(CC)  flasher.c  $(CC_FLAGS) -I/usr/include/modbus -lmodbus -o $(BIN_NAME)
+$(BIN_NAME): flasher.c libmodbus-$(DEB_HOST_GNU_TYPE)/src/.libs/libmodbus.a
+	$(CC)  flasher.c  $(CC_FLAGS) -Ilibmodbus-$(DEB_HOST_GNU_TYPE)/src -Llibmodbus-$(DEB_HOST_GNU_TYPE)/src/.libs -static -lmodbus -o $(BIN_NAME)
 
-libmodbus:
-	git clone https://github.com/stephane/libmodbus.git
+libmodbus-$(DEB_HOST_GNU_TYPE):
+	git clone https://github.com/wirenboard/libmodbus.git $@
 
-libmodbus/src/.libs/libmodbus.a: libmodbus
-	cd libmodbus/ && ./autogen.sh && ./configure --host i686-w64-mingw32 --enable-static=yes --without-documentation --disable-tests
-	make -C libmodbus 
+libmodbus-$(DEB_HOST_GNU_TYPE)/src/.libs/libmodbus.a: libmodbus-$(DEB_HOST_GNU_TYPE)
+	cd $< && ./autogen.sh && ./configure --host $(subst libmodbus-,,$<) --enable-static=yes --without-documentation --disable-tests
+	make -C $<
 
-$(W32_BIN_NAME): flasher.c libmodbus/src/.libs/libmodbus.a
-	$(W32_CROSS)gcc flasher.c $(CC_FLAGS) -Ilibmodbus/src  -mconsole -static  -L libmodbus/src/.libs/  -lmodbus -l ws2_32 -o $(W32_BIN_NAME)
-	$(W32_CROSS)strip --strip-unneeded $(W32_BIN_NAME)
+libmodbus-$(W32_CROSS):
+	git clone https://github.com/wirenboard/libmodbus.git $@
+
+libmodbus-$(W32_CROSS)/src/.libs/libmodbus.a: libmodbus-$(W32_CROSS)
+	cd $< && ./autogen.sh && ./configure --host $(subst libmodbus-,,$<) --enable-static=yes --without-documentation --disable-tests
+	make -C $<
+
+$(W32_BIN_NAME): flasher.c libmodbus-$(W32_CROSS)/src/.libs/libmodbus.a
+	$(W32_CROSS)-gcc flasher.c $(CC_FLAGS) -Ilibmodbus-$(W32_CROSS)/src  -mconsole -static  -L libmodbus-$(W32_CROSS)/src/.libs/  -lmodbus -l ws2_32 -o $(W32_BIN_NAME)
+	$(W32_CROSS)-strip --strip-unneeded $(W32_BIN_NAME)
 
 win32: $(W32_BIN_NAME)
 
@@ -37,5 +44,5 @@ clean:
 	-@rm -f $(BIN_NAME)
 
 	-@rm -f $(W32_BIN_NAME)
-	-@rm -rf libmodbus
+	-@rm -rf libmodbus-*
 .PHONY: install clean all win32
