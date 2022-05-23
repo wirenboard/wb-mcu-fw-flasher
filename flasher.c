@@ -397,7 +397,11 @@ int ensureCharIn(char param, const char array[], unsigned int arrayLen) {
 }
 
 modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAddr, int debug){
+#if defined(_WIN32)
     modbus_t *mb_connection = modbus_new_rtu(device, deviceParams.baudrate, deviceParams.parity, deviceParams.databits, deviceParams.stopbits);
+#else
+    modbus_t *mb_connection = modbus_new_rtu_different_stopbits(device, deviceParams.baudrate, deviceParams.parity, deviceParams.databits, deviceParams.stopbits, 1);
+#endif
 
     if (mb_connection == NULL) {
         fprintf(stderr, "Unknown error.\n");
