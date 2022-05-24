@@ -83,7 +83,8 @@ int main(int argc, char *argv[])
         .baudrate = 9600,
         .parity = 'N',
         .databits = 8,
-        .stopbits = 2
+        // .stopbits = 2
+        .stopbits = 1
     };
 
     struct UartSettings deviceParams = { //To send -j to device. Filled from user input
