@@ -19,6 +19,8 @@
 #define HOLD_REG_CMD_UART_SETTINGS_RESET    1000
 #define HOLD_REG_CMD_EEPROM_ERASE           1001
 
+#define BL_MINIMAL_RESPONSE_TIMEOUT    5.0
+
 #define xstr(a) str(a)
 #define str(a) #a
 
@@ -40,7 +42,7 @@ const char allowedParity[] = {'N', 'E', 'O'};
 int ensureIntIn(int param, const int array[], unsigned int arrayLen);
 int ensureCharIn(char param, const char array[], unsigned int arrayLen);
 
-modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAddr, int debug);
+modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAddr, int debug, float responseTimeout);
 
 void deinitModbus(modbus_t *modbusConnection);
 
@@ -208,12 +210,9 @@ int main(int argc, char *argv[])
     }
 
     //Connecting on device's params
-    modbus_t *device_params_connection = initModbus(device, deviceParams, modbusID, debug);
+    modbus_t *device_params_connection = initModbus(device, deviceParams, modbusID, debug, responseTimeout);
 
     printf("%s opened successfully.\n", device);
-
-    struct timeval response_timeout = parseResponseTimeout(responseTimeout);
-    setResponseTimeout(response_timeout, device_params_connection);
 
     if (jumpCmd) {
         printf("Send jump to bootloader command and wait 2 seconds...\n");
@@ -239,9 +238,8 @@ int main(int argc, char *argv[])
     deinitModbus(device_params_connection);
 
     //Connecting on Bootloader's params
-    modbus_t *bootloader_params_connection = initModbus(device, bootloaderParams, modbusID, debug);
-
-    setResponseTimeout(response_timeout, bootloader_params_connection);
+    float bl_response_timeout = (BL_MINIMAL_RESPONSE_TIMEOUT > responseTimeout) ? BL_MINIMAL_RESPONSE_TIMEOUT : responseTimeout;
+    modbus_t *bootloader_params_connection = initModbus(device, bootloaderParams, modbusID, debug, bl_response_timeout);
 
     if (uartResetCmd) {
         printf("Send reset UART settings and modbus address command...\n");
@@ -330,10 +328,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    response_timeout.tv_sec = 1;
-    response_timeout.tv_usec = 0;
-    setResponseTimeout(response_timeout, bootloader_params_connection);
-
     printf("\n");
     while (filePointer < filesize) {
         fflush(stdout);
@@ -396,7 +390,7 @@ int ensureCharIn(char param, const char array[], unsigned int arrayLen) {
     return valueIsIn;
 }
 
-modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAddr, int debug){
+modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAddr, int debug, float responseTimeout){
 #if defined(_WIN32)
     modbus_t *mb_connection = modbus_new_rtu(device, deviceParams.baudrate, deviceParams.parity, deviceParams.databits, deviceParams.stopbits);
 #else
@@ -425,6 +419,9 @@ modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAd
         modbus_free(mb_connection);
         exit(EXIT_FAILURE);
     };
+
+    struct timeval response_timeout = parseResponseTimeout(responseTimeout);
+    setResponseTimeout(response_timeout, mb_connection);
 
     modbus_flush(mb_connection);
     modbus_set_debug(mb_connection, debug);
