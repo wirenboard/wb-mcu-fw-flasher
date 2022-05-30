@@ -50,6 +50,8 @@ struct timeval parseResponseTimeout(float timeout_sec);
 
 void setResponseTimeout(struct timeval timeoutStruct, modbus_t *modbusContext);
 
+int stopbitsAreForced = 0;
+
 int main(int argc, char *argv[])
 {
     if (argc == 1) {
@@ -60,8 +62,10 @@ int main(int argc, char *argv[])
         printf("Param  Description                                         Default value\n\n");
 #if defined(_WIN32)
         printf("-d     Serial port (\"COMxx\", e.g. COM12)                         -\n");
+        printf("-s     Stopbits (2/1)                                              2\n");
 #else
         printf("-d     Serial port (e.g. \"/dev/ttyRS485-1\")                      -\n");
+        printf("-s     Stopbits (2/1)                                   auto: (2sb->, ->1sb)\n");
 #endif
         printf("-f     Firmware file                                             -\n");
         printf("-a     Modbus ID (slave addr)                                    1\n");
@@ -72,7 +76,6 @@ int main(int argc, char *argv[])
         printf("-D     Debug mode                                                -\n");
         printf("-b     Baud Rate (serial port speed)                             9600\n");
         printf("-p     Parity                                                    N\n");
-        printf("-s     Stopbits                                                  2\n");
         printf("-t     Slave response timeout (in seconds)                       10.0\n");
 
         printf("\nMinimal flashing example:\n%s %s\n", argv[0], flashingExample);
@@ -109,6 +112,7 @@ int main(int argc, char *argv[])
 
 
     int c;
+    int stopbits;
     while ((c = getopt(argc, argv, "d:f:a:t:juer:Db:p:s:B:")) != -1) {
         switch (c) {
         case 'd':
@@ -168,11 +172,20 @@ int main(int argc, char *argv[])
                 exit(EXIT_FAILURE);
             };
         case 's':
-            sscanf(optarg, "%d", &deviceParams.stopbits);
-            if (ensureIntIn(deviceParams.stopbits, allowedStopBits, sizeof(allowedStopBits))) {
+        /*
+        -s arg provides stopbits for both alive-device & in-bootloader connections;
+        Defaults:
+            WIN32 - 2sb
+            Posix - auto stopbits (2sb->, ->1sb)
+        */
+            sscanf(optarg, "%d", &stopbits);
+            if (ensureIntIn(stopbits, allowedStopBits, sizeof(allowedStopBits))) {
+                stopbitsAreForced = 1;
+                deviceParams.stopbits = stopbits;
+                bootloaderParams.stopbits = stopbits;
                 break;
             } else {
-                printf ("Stopbits (-s <%d>) are not supported!\n", deviceParams.stopbits);
+                printf ("Stopbits (-s <%d>) are not supported!\n", stopbits);
                 exit(EXIT_FAILURE);
             };
         default:
@@ -391,10 +404,11 @@ int ensureCharIn(char param, const char array[], unsigned int arrayLen) {
 }
 
 modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAddr, int debug, float responseTimeout){
-#if defined(_WIN32)
+#if defined(_WIN32)  // different stopbits for receiving & transmitting are supported only in posix
     modbus_t *mb_connection = modbus_new_rtu(device, deviceParams.baudrate, deviceParams.parity, deviceParams.databits, deviceParams.stopbits);
 #else
-    modbus_t *mb_connection = modbus_new_rtu_different_stopbits(device, deviceParams.baudrate, deviceParams.parity, deviceParams.databits, deviceParams.stopbits, 1);
+    int stopbitsReceiving = (stopbitsAreForced == 0) ? 1 : deviceParams.stopbits;
+    modbus_t *mb_connection = modbus_new_rtu_different_stopbits(device, deviceParams.baudrate, deviceParams.parity, deviceParams.databits, deviceParams.stopbits, stopbitsReceiving);
 #endif
 
     if (mb_connection == NULL) {
