@@ -1,7 +1,8 @@
 wb-mcu-fw-flasher (1.0.9) stable; urgency=medium
 
-  * libmodbus: migrated to stopbits-tolerant instrument (write - 2sb; read - 1sb)
-  * added minimal response_timeout in bootloader; reworked timeout setting
+  * libmodbus: migrated to stopbits-tolerant ctx (write - 2sb; read - 1sb; posix only)
+  * added minimal response_timeout (== 5s) in bootloader; reworked timeout setting
+  * -s arg now sets stopbits for both alive-device & in-bootloader connections
 
  -- Vladimir Romanov <v.romanov@wirenboard.ru>  Tue, 24 May 2022 23:48:47 +0300
 
