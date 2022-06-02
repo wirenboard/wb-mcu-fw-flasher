@@ -18,14 +18,14 @@ $(BIN_NAME): flasher.c libmodbus-$(DEB_HOST_GNU_TYPE)/src/.libs/libmodbus.a
 	$(CC)  flasher.c  $(CC_FLAGS) -Ilibmodbus-$(DEB_HOST_GNU_TYPE)/src -Llibmodbus-$(DEB_HOST_GNU_TYPE)/src/.libs -static -lmodbus -o $(BIN_NAME)
 
 libmodbus-$(DEB_HOST_GNU_TYPE):
-	git clone https://github.com/wirenboard/libmodbus.git $@
+	git clone -b tmp/vdromanov/pr-test https://github.com/wirenboard/libmodbus.git $@
 
 libmodbus-$(DEB_HOST_GNU_TYPE)/src/.libs/libmodbus.a: libmodbus-$(DEB_HOST_GNU_TYPE)
 	cd $< && ./autogen.sh && ./configure --host $(subst libmodbus-,,$<) --enable-static=yes --without-documentation --disable-tests
 	make -C $<
 
 libmodbus-$(W32_CROSS):
-	git clone https://github.com/wirenboard/libmodbus.git $@
+	git clone -b tmp/vdromanov/pr-test https://github.com/wirenboard/libmodbus.git $@
 
 libmodbus-$(W32_CROSS)/src/.libs/libmodbus.a: libmodbus-$(W32_CROSS)
 	cd $< && ./autogen.sh && ./configure --host $(subst libmodbus-,,$<) --enable-static=yes --without-documentation --disable-tests
