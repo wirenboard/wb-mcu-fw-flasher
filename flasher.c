@@ -71,7 +71,6 @@ int main(int argc, char *argv[])
         printf("-a     Modbus ID (slave addr)                                    1\n");
         printf("-j     Send jump to bootloader command                           -\n");
         printf("-u     Reset UART setting and MODBUS address to factory default  -\n");
-        printf("-e     Reset ALL settings to factory default                     -\n");
         printf("-r     Jump to bootloader register address                       129\n");
         printf("-D     Debug mode                                                -\n");
         printf("-b     Baud Rate (serial port speed)                             9600\n");
