@@ -1,3 +1,10 @@
+wb-mcu-fw-flasher (1.2.0) stable; urgency=medium
+
+  * added -w key (erase FlashFS)
+  * -e key (erase EEPROM) removed from output
+
+ -- Pavel Gasheev <pavel.gasheev@wirenboard.ru>  Fri, 25 Nov 2022 10:22:05 +0300
+
 wb-mcu-fw-flasher (1.1.0) stable; urgency=medium
 
   * libmodbus: migrated to stopbits-tolerant ctx

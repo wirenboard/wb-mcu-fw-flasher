@@ -18,6 +18,7 @@
 #define HOLD_REG_JUMP_TO_BOOTLOADER         129
 #define HOLD_REG_CMD_UART_SETTINGS_RESET    1000
 #define HOLD_REG_CMD_EEPROM_ERASE           1001
+#define HOLD_REG_CMD_FLASHFS_ERASE          1002
 
 #define BL_MINIMAL_RESPONSE_TIMEOUT    5.0
 
@@ -71,7 +72,7 @@ int main(int argc, char *argv[])
         printf("-a     Modbus ID (slave addr)                                    1\n");
         printf("-j     Send jump to bootloader command                           -\n");
         printf("-u     Reset UART setting and MODBUS address to factory default  -\n");
-        printf("-e     Reset ALL settings to factory default                     -\n");
+        printf("-w     Reset device settings stored in flash to factory default  -\n");
         printf("-r     Jump to bootloader register address                       129\n");
         printf("-D     Debug mode                                                -\n");
         printf("-b     Baud Rate (serial port speed)                             9600\n");
@@ -105,6 +106,7 @@ int main(int argc, char *argv[])
     int   jumpCmd  = 0;
     int   uartResetCmd = 0;
     int   eepromFormatCmd = 0;
+    int   falshFsFormatCmd = 0;
     int   jumpReg  = HOLD_REG_JUMP_TO_BOOTLOADER;
     int   debug    = 0;
     int   inBootloader = 0;
@@ -113,7 +115,7 @@ int main(int argc, char *argv[])
 
     int c;
     int stopbits;
-    while ((c = getopt(argc, argv, "d:f:a:t:juer:Db:p:s:B:")) != -1) {
+    while ((c = getopt(argc, argv, "d:f:a:t:juewr:Db:p:s:B:")) != -1) {
         switch (c) {
         case 'd':
             device = optarg;
@@ -140,6 +142,9 @@ int main(int argc, char *argv[])
             break;
         case 'e':
             eepromFormatCmd = 1;
+            break;
+        case 'w':
+            falshFsFormatCmd = 1;
             break;
         case 'r':
             sscanf(optarg, "%d", &jumpReg);
@@ -268,6 +273,17 @@ int main(int argc, char *argv[])
     if (eepromFormatCmd) {
         printf("Send format EEPROM command...\n");
         if (modbus_write_register(bootloader_params_connection, HOLD_REG_CMD_EEPROM_ERASE, 1) == 1) {
+            printf("Ok.\n");
+            inBootloader = 1;
+        } else {
+            printf("Error: %s.\n", modbus_strerror(errno));
+        }
+        sleep(1);    // wait 1 second
+    }
+
+    if (falshFsFormatCmd) {
+        printf("Send format FlashFS command...\n");
+        if (modbus_write_register(bootloader_params_connection, HOLD_REG_CMD_FLASHFS_ERASE, 1) == 1) {
             printf("Ok.\n");
             inBootloader = 1;
         } else {
