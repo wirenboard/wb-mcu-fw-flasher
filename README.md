@@ -143,10 +143,6 @@ echo -e $(modbus_client -mrtu -pnone -s2 /dev/ttyRS485-1 -a1 -t0x03 -r330 -c8 | 
 Опции запуска:
 
 ```
-root@wirenboard-AEYANPGT:/etc/apt/sources.list.d# wb-mcu-fw-flasher 
-Welcome to Wiren Board flash tool.
-Version: 1.2.0, libmodbus version: 3.1.7
-
 Usage:
 
 Param  Description                                         Default value
@@ -165,14 +161,14 @@ Param  Description                                         Default value
 -t     Slave response timeout (in seconds)                       10.0
 
 Minimal flashing example:
-./wb-mcu-fw-flasher_1.2.0 -d <port> -f <firmware.wbfw>
+wb-mcu-fw-flasher -d <port> -f <firmware.wbfw>
 Minimal format uart settings example:
-./wb-mcu-fw-flasher_1.2.0 -d <port> -j -u
+wb-mcu-fw-flasher -d <port> -j -u
 Flashing running device example:
-./wb-mcu-fw-flasher_1.2.0 -d <port> -a <modbus_addr> -j -u -f <firmware.wbfw>
+wb-mcu-fw-flasher -d <port> -a <modbus_addr> -j -u -f <firmware.wbfw>
 ```
 
-Опция -j позволяет прошиать устройство при его работе в основной
+Опция -j позволяет прошивать устройство при его работе в основной
 программе.
 
 ### Прошивка firmware
