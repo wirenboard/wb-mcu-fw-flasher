@@ -101,7 +101,7 @@ Write Single Register (0x06) и Write Multiple Registers (0x10). **Адреса
 
 #### Сброс настроек устройства на настройки по умолчанию:
 
-* выполняется путем записи ненулевого значения в регистр `1002 (0x03E9)` командой `0x06`
+* выполняется путем записи ненулевого значения в регистр `1002 (0x03EA)` командой `0x06`
 * работает начиная с версии загрузчика `1.2.0`
 * должна быть поддержка со стороны прошивки (подробнее - в changelog прошивки)
 * безопасно для использования: калибровки не потеряются, а если нет поддержки со стороны прошивки - ничего не будет выполнено
@@ -142,20 +142,34 @@ echo -e $(modbus_client -mrtu -pnone -s2 /dev/ttyRS485-1 -a1 -t0x03 -r330 -c8 | 
 
 Опции запуска:
 
-``` 
-  root@wirenboard-AEYANPGT:/etc/apt/sources.list.d# wb-mcu-fw-flasher 
-  Welcome to Wiren Board flash tool.
-  Usage:
-  Param  Description                                               Default value
-   -d     Communication device                                      -
-   -f     Firmware file                                             -
-   -a     Modbus ID                                                 1
-   -j     Send jump to bootloader command                           -
-   -u     Reset UART setting and MODBUS address to factory default  -
-   -e     Format EEPROM (except device signature)                   -
-   -r     Jump to bootloader register address                       129
-   -D     Debug mode                                                -
-  Minimal example: ./flasher -d /dev/ttyUSB0 -f firmware.wbfw
+```
+root@wirenboard-AEYANPGT:/etc/apt/sources.list.d# wb-mcu-fw-flasher 
+Welcome to Wiren Board flash tool.
+Version: 1.2.0, libmodbus version: 3.1.7
+
+Usage:
+
+Param  Description                                         Default value
+
+-d     Serial port (e.g. "/dev/ttyRS485-1")                      -
+-s     Stopbits (2/1)                                   auto: (2sb->, ->1sb)
+-f     Firmware file                                             -
+-a     Modbus ID (slave addr)                                    1
+-j     Send jump to bootloader command                           -
+-u     Reset UART setting and MODBUS address to factory default  -
+-w     Reset device settings stored in flash to factory default  -
+-r     Jump to bootloader register address                       129
+-D     Debug mode                                                -
+-b     Baud Rate (serial port speed)                             9600
+-p     Parity                                                    N
+-t     Slave response timeout (in seconds)                       10.0
+
+Minimal flashing example:
+./wb-mcu-fw-flasher_1.2.0 -d <port> -f <firmware.wbfw>
+Minimal format uart settings example:
+./wb-mcu-fw-flasher_1.2.0 -d <port> -j -u
+Flashing running device example:
+./wb-mcu-fw-flasher_1.2.0 -d <port> -a <modbus_addr> -j -u -f <firmware.wbfw>
 ```
 
 Опция -j позволяет прошиать устройство при его работе в основной
