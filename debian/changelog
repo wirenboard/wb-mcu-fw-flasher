@@ -1,3 +1,9 @@
+wb-mcu-fw-flasher (1.2.1) stable; urgency=medium
+
+  * update libmodbus: revert zero noise bytes skipping (now in the kernel)
+
+ -- Pavel Gasheev <pavel.gasheev@wirenboard.ru>  Mon, 28 Nov 2022 09:33:18 +0300
+
 wb-mcu-fw-flasher (1.2.0) stable; urgency=medium
 
   * added -w key (erase FlashFS)
