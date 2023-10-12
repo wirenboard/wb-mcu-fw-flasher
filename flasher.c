@@ -71,6 +71,7 @@ int main(int argc, char *argv[])
         printf("-f     Firmware file                                             -\n");
         printf("-a     Modbus ID (slave addr)                                    1\n");
         printf("-j     Send jump to bootloader command                           -\n");
+        printf("-J     Send jump to bootloader command and use current baudrate  -\n");
         printf("-u     Reset UART setting and MODBUS address to factory default  -\n");
         printf("-w     Reset device settings stored in flash to factory default  -\n");
         printf("-r     Jump to bootloader register address                       129\n");
@@ -99,11 +100,17 @@ int main(int argc, char *argv[])
         .stopbits = 2
     };
 
+    enum jump_cmd {
+        JUMP_CMD_NONE = 0,
+        JUMP_CMD_JUMP_WITH_DEFAULT_BAUDRATE = 1,
+        JUMP_CMD_JUMP_WITH_CURRENT_BAUDRATE = 2
+    };
+
     // Default values
     char *device   = NULL;
     char *fileName = NULL;
     int   modbusID = 1;
-    int   jumpCmd  = 0;
+    enum jump_cmd jumpCmd = JUMP_CMD_NONE;
     int   uartResetCmd = 0;
     int   eepromFormatCmd = 0;
     int   falshFsFormatCmd = 0;
@@ -115,7 +122,7 @@ int main(int argc, char *argv[])
 
     int c;
     int stopbits;
-    while ((c = getopt(argc, argv, "d:f:a:t:juewr:Db:p:s:B:")) != -1) {
+    while ((c = getopt(argc, argv, "d:f:a:t:jJuewr:Db:p:s:B:")) != -1) {
         switch (c) {
         case 'd':
             device = optarg;
@@ -135,7 +142,10 @@ int main(int argc, char *argv[])
                 exit(EXIT_FAILURE);
             };
         case 'j':
-            jumpCmd = 1;
+            jumpCmd = JUMP_CMD_JUMP_WITH_DEFAULT_BAUDRATE;
+            break;
+        case 'J':
+            jumpCmd = JUMP_CMD_JUMP_WITH_CURRENT_BAUDRATE;
             break;
         case 'u':
             uartResetCmd = 1;
@@ -232,9 +242,9 @@ int main(int argc, char *argv[])
 
     printf("%s opened successfully.\n", device);
 
-    if (jumpCmd) {
+    if (jumpCmd != JUMP_CMD_NONE) {
         printf("Send jump to bootloader command and wait 2 seconds...\n");
-        if (modbus_write_register(device_params_connection, jumpReg, 1) == 1) {
+        if (modbus_write_register(device_params_connection, jumpReg, jumpCmd) == 1) {
             printf("Ok, device will jump to bootloader.\n");
             inBootloader = 1;
         } else {
@@ -255,9 +265,14 @@ int main(int argc, char *argv[])
 
     deinitModbus(device_params_connection);
 
-    //Connecting on Bootloader's params
     float bl_response_timeout = (BL_MINIMAL_RESPONSE_TIMEOUT > responseTimeout) ? BL_MINIMAL_RESPONSE_TIMEOUT : responseTimeout;
-    modbus_t *bootloader_params_connection = initModbus(device, bootloaderParams, modbusID, debug, bl_response_timeout);
+    modbus_t *bootloader_params_connection;
+    if (jumpCmd == JUMP_CMD_JUMP_WITH_CURRENT_BAUDRATE) {
+        bootloader_params_connection = initModbus(device, deviceParams, modbusID, debug, bl_response_timeout);
+    } else {
+        //Connecting on Bootloader's params
+        bootloader_params_connection = initModbus(device, bootloaderParams, modbusID, debug, bl_response_timeout);
+    }
 
     if (uartResetCmd) {
         printf("Send reset UART settings and modbus address command...\n");
