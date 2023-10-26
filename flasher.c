@@ -242,7 +242,7 @@ int main(int argc, char *argv[])
 
     if (jumpCmd) {
         printf("Send jump to bootloader command and wait 2 seconds...\n");
-        if (modbus_write_register(device_params_connection, jumpReg, jumpCmd) == 1) {
+        if (modbus_write_register(device_params_connection, jumpReg, 1) == 1) {
             printf("Ok, device will jump to bootloader.\n");
             inBootloader = 1;
         } else {
