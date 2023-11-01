@@ -71,13 +71,13 @@ int main(int argc, char *argv[])
 #endif
         printf("-f     Firmware file                                             -\n");
         printf("-a     Modbus ID (slave addr)                                    1\n");
-        printf("-j     Send jump to bootloader command                           -\n");
-        printf("-J     Send jump to bootloader command and use current baudrate  -\n");
+        printf("-j     Jump to bootloader using reg 129 (9600N2)                 -\n");
+        printf("-J     Jump to bootloader using reg 131 (current baudrate)       -\n");
         printf("-u     Reset UART setting and MODBUS address to factory default  -\n");
         printf("-w     Reset device settings stored in flash to factory default  -\n");
-        printf("-r     Jump to bootloader register address                       129/131\n");
         printf("-D     Debug mode                                                -\n");
-        printf("-b     Baud Rate (serial port speed)                             9600\n");
+        printf("-b     Baudrate used to communicate with firmware                9600\n");
+        printf("-B     Baudrate used to communicate with bootloader              9600\n");
         printf("-p     Parity                                                    N\n");
         printf("-t     Slave response timeout (in seconds)                       10.0\n");
 
@@ -105,20 +105,19 @@ int main(int argc, char *argv[])
     char *device   = NULL;
     char *fileName = NULL;
     int   modbusID = 1;
-    int   jumpCmd  = 0;
+    int   jumpCmdStandardBaud = 0;
+    int   jumpCmdCurrentBaud = 0;
     int   uartResetCmd = 0;
     int   eepromFormatCmd = 0;
     int   falshFsFormatCmd = 0;
-    int   jumpReg = HOLD_REG_JUMP_TO_BOOT_STANDARD_BAUD;
     int   debug    = 0;
     int   inBootloader = 0;
     float responseTimeout = 10.0f; // Seconds
-    int   useCurrentBaudrateInBootloader = 0;
 
 
     int c;
     int stopbits;
-    while ((c = getopt(argc, argv, "d:f:a:t:jJuewr:Db:p:s:B:")) != -1) {
+    while ((c = getopt(argc, argv, "d:f:a:t:jJuewDb:p:s:B:")) != -1) {
         switch (c) {
         case 'd':
             device = optarg;
@@ -138,12 +137,10 @@ int main(int argc, char *argv[])
                 exit(EXIT_FAILURE);
             };
         case 'j':
-            jumpCmd = 1;
+            jumpCmdStandardBaud = 1;
             break;
         case 'J':
-            jumpCmd = 1;
-            jumpReg = HOLD_REG_JUMP_TO_BOOT_CURRENT_BAUD;
-            useCurrentBaudrateInBootloader = 1;
+            jumpCmdCurrentBaud = 1;
             break;
         case 'u':
             uartResetCmd = 1;
@@ -153,9 +150,6 @@ int main(int argc, char *argv[])
             break;
         case 'w':
             falshFsFormatCmd = 1;
-            break;
-        case 'r':
-            sscanf(optarg, "%d", &jumpReg);
             break;
         case 'D':
             debug = 1;
@@ -207,6 +201,12 @@ int main(int argc, char *argv[])
         }
     }
 
+    if (jumpCmdStandardBaud && jumpCmdCurrentBaud) {
+        printf("Parameters error.\n");
+        printf("You can't use -j and -J at the same time.\n");
+        exit(EXIT_FAILURE);
+    }
+
 #if defined(_WIN32)
     // We expect device in a form of "COMxx". So strip leading "." and "\", and trailing ":".
     if (device) {
@@ -240,9 +240,9 @@ int main(int argc, char *argv[])
 
     printf("%s opened successfully.\n", device);
 
-    if (jumpCmd) {
+    if (jumpCmdStandardBaud) {
         printf("Send jump to bootloader command and wait 2 seconds...\n");
-        if (modbus_write_register(device_params_connection, jumpReg, 1) == 1) {
+        if (modbus_write_register(device_params_connection, HOLD_REG_JUMP_TO_BOOT_STANDARD_BAUD, 1) == 1) {
             printf("Ok, device will jump to bootloader.\n");
             inBootloader = 1;
         } else {
@@ -259,13 +259,32 @@ int main(int argc, char *argv[])
             printf("May be device already in bootloader, check status led\n");
         }
         sleep(2);    // wait 2 seconds
+    } else if (jumpCmdCurrentBaud) {
+        printf("Try to jump to bootloader using current baudrate...\n");
+        if (modbus_write_register(device_params_connection, HOLD_REG_JUMP_TO_BOOT_CURRENT_BAUD, 1) == 1) {
+            printf("Ok, device supports this. Baudrate %d will be used for flashing.\n", deviceParams.baudrate);
+            inBootloader = 1;
+        } else {
+            fprintf(stderr, "Error while writing register %d: %s.\n", HOLD_REG_JUMP_TO_BOOT_CURRENT_BAUD, modbus_strerror(errno));
+            if (errno == EMBXILADD) {
+                fprintf(stderr, "Firmware doesn't support this command. Please upgrade firmware.\n");
+            } else if (errno == EMBXILVAL) {
+                fprintf(stderr, "Bootloader doesn't support flashing with different baudrates. Please upgrade bootloader.\n");
+            } else {
+                fprintf(stderr, "Other error, check device connection parameters.\n");
+            }
+            fprintf(stderr, "Alternatively, you can use -j option to jump to bootloader using standard baudrate.\n");
+            deinitModbus(device_params_connection);
+            exit(EXIT_FAILURE);
+        }
+        sleep(2);
     }
 
     deinitModbus(device_params_connection);
 
     float bl_response_timeout = (BL_MINIMAL_RESPONSE_TIMEOUT > responseTimeout) ? BL_MINIMAL_RESPONSE_TIMEOUT : responseTimeout;
     modbus_t *bootloader_params_connection;
-    if (useCurrentBaudrateInBootloader) {
+    if (jumpCmdCurrentBaud) {
         bootloader_params_connection = initModbus(device, deviceParams, modbusID, debug, bl_response_timeout);
     } else {
         //Connecting on Bootloader's params
