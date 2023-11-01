@@ -158,28 +158,26 @@ Param  Description                                         Default value
 -s     Stopbits (2/1)                                   auto: (2sb->, ->1sb)
 -f     Firmware file                                             -
 -a     Modbus ID (slave addr)                                    1
--j     Send jump to bootloader command                           -
--J     Send jump to bootloader command and use current baudrate  -
+-j     Jump to bootloader using reg 129 (9600N2)                 -
+-J     Jump to bootloader using reg 131 (current baudrate)       -
 -u     Reset UART setting and MODBUS address to factory default  -
 -w     Reset device settings stored in flash to factory default  -
--r     Jump to bootloader register address                       129
 -D     Debug mode                                                -
--b     Baud Rate (serial port speed)                             9600
+-b     Baudrate used to communicate with firmware                9600
+-B     Baudrate used to communicate with bootloader              9600
 -p     Parity                                                    N
 -t     Slave response timeout (in seconds)                       10.0
 
 Minimal flashing example:
-wb-mcu-fw-flasher -d <port> -f <firmware.wbfw>
+./wb-mcu-fw-flasher -d <port> -f <firmware.wbfw>
 Minimal format uart settings example:
-wb-mcu-fw-flasher -d <port> -j -u
+./wb-mcu-fw-flasher -d <port> -j -u
 Flashing running device example:
-wb-mcu-fw-flasher -d <port> -a <modbus_addr> -j -u -f <firmware.wbfw>
+./wb-mcu-fw-flasher -d <port> -a <modbus_addr> -j -u -f <firmware.wbfw>
 ```
 
 Опция -j позволяет прошивать устройство при его работе в основной
 программе.
-
-### Прошивка firmware
 
 ## Прошивка прошивки
 
@@ -252,6 +250,10 @@ Bootloader позволяет загружать прошивку на устр�
 Начиная с версии загрузчика `1.3.0` и версии wb-mcu-fw-flasher `1.3.0` поддерживается переход из прошивки в загрузчик с сохранением параметров соединения (скорость, чётность).
 Для этого необходимо использовать опцию `-J` в wb-mcu-fw-flasher.
 Также необходима поддержка в прошивке (см. changelog прошивки конкретного устройства).
+
+Скорость обновления прошивки задается флагом `-b` совместно с `-J`. В этом случае команда перехода в загрузчик будет отправлена на указанной в `-b` скорости и процесс обновления прошивки продолжится на этой же скорости.
+
+Если устройство было переведено в загрузчик вручную или прошлая попытка обновления была неудачной, то нужно использовать флаг `-B` для задания скорости обновления прошивки без флагов `-j` и `-J`.
 
 ## Быстрая прошивка для производства
 
