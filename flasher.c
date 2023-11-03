@@ -267,9 +267,7 @@ int main(int argc, char *argv[])
         } else {
             fprintf(stderr, "Error while writing register %d: %s.\n", HOLD_REG_JUMP_TO_BOOT_CURRENT_BAUD, modbus_strerror(errno));
             if (errno == EMBXILADD) {
-                fprintf(stderr, "Firmware doesn't support this command. Please upgrade firmware.\n");
-            } else if (errno == EMBXILVAL) {
-                fprintf(stderr, "Bootloader doesn't support flashing with different baudrates. Please upgrade bootloader.\n");
+                fprintf(stderr, "Firmware and/or bootloader doesn't support this command. Please upgrade firmware and/or bootloader.\n");
             } else {
                 fprintf(stderr, "Other error, check device connection parameters.\n");
             }
