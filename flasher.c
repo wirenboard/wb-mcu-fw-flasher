@@ -268,10 +268,10 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Error while writing register %d: %s.\n", HOLD_REG_JUMP_TO_BOOT_CURRENT_BAUD, modbus_strerror(errno));
             if (errno == EMBXILADD) {
                 fprintf(stderr, "Firmware and/or bootloader doesn't support this command. Please upgrade firmware and/or bootloader.\n");
+                fprintf(stderr, "Alternatively, you can use -j option to jump to bootloader using standard baudrate.\n");
             } else {
                 fprintf(stderr, "Other error, check device connection parameters.\n");
             }
-            fprintf(stderr, "Alternatively, you can use -j option to jump to bootloader using standard baudrate.\n");
             deinitModbus(device_params_connection);
             exit(EXIT_FAILURE);
         }
