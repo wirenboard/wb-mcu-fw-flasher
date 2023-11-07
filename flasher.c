@@ -27,8 +27,7 @@
 #define str(a) #a
 
 const char flashingExample[] = "-d <port> -f <firmware.wbfw>";
-const char formatSettingsExample[] = "-d <port> -j -u";
-const char casualUsageExample[] = "-d <port> -a <modbus_addr> -j -u -f <firmware.wbfw>";
+const char casualUsageExample[] = "-d <port> -a <modbus_addr> -j -f <firmware.wbfw>";
 
 struct UartSettings {
     int baudrate;
@@ -71,8 +70,10 @@ int main(int argc, char *argv[])
 #endif
         printf("-f     Firmware file                                             -\n");
         printf("-a     Modbus ID (slave addr)                                    1\n");
-        printf("-j     Jump to bootloader using reg 129 (9600N2)                 -\n");
-        printf("-J     Jump to bootloader using reg 131 (current baudrate)       -\n");
+        printf("-j     Jump to bootloader using reg 129                          -\n");
+        printf("         uses 9600N2 for communicate with bootloader (can be changed with -B key)\n");
+        printf("-J     Jump to bootloader using reg 131                          -\n");
+        printf("         uses baudrate from -b key to communicate with bootloader (don`t use -B)\n");
         printf("-u     Reset UART setting and MODBUS address to factory default  -\n");
         printf("-w     Reset device settings stored in flash to factory default  -\n");
         printf("-D     Debug mode                                                -\n");
@@ -81,9 +82,21 @@ int main(int argc, char *argv[])
         printf("-p     Parity                                                    N\n");
         printf("-t     Slave response timeout (in seconds)                       10.0\n");
 
-        printf("\nMinimal flashing example:\n%s %s\n", argv[0], flashingExample);
-        printf("Minimal format uart settings example:\n%s %s\n", argv[0], formatSettingsExample);
-        printf("Flashing running device example:\n%s %s\n", argv[0], casualUsageExample);
+        printf("\nExamples:\n\n");
+
+        printf("Flashing device that is in bootloader:\n");
+        printf("    %s %s\n", argv[0], flashingExample);
+        printf("    useful for flashing device immediately after power on\n\n");
+
+        printf("Reset uart settings:\n");
+        printf("    %s -d <port> -a10 -u\n\n", argv[0]);
+
+        printf("Flashing running device:\n");
+        printf("    %s %s\n\n", argv[0], casualUsageExample);
+
+        printf("Flashing running device using custom baudrate:\n");
+        printf("    %s -d <port> -a <modbus_addr> -b115200 -J -f <firmware.wbfw>\n", argv[0]);
+        printf("    useful for flashing device behind Modbus-TCP gateway\n\n");
         return 0;
     };
 
