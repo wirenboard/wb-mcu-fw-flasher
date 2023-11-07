@@ -18,8 +18,9 @@ Bootloader реализует следующий функционал:
 Коммуникационные параметры (скорость, четность, количество стоп-битов и
 битов данных, сигнатура устройства) сохраняются в EEPROM-чипе. **В
 режиме bootloader'а коммуникационные параметры фиксированы и не
-зависят от значений в EEPROM: 9600 8N2.** Выбор Modbus-адреса
-устройства описан ниже.
+зависят от значений в EEPROM: 9600 8N2.** Начиная с версии загрузчика
+1.3.0 имеется возможность перейти из прошивки в загрузчик с сохранением
+коммуникационных параметров. Выбор Modbus-адреса устройства описан ниже.
 
 ### Переход в режим bootloader'а
 
@@ -29,10 +30,18 @@ Bootloader реализует следующий функционал:
     bootloader активен в течение 2 секунд;
   - если основная программа отсутсвует в памяти (например, был сбой при
     обновлении прошивки); в этом случае bootloader активен постоянно;
-  - При работе основной программы в holding-регистр 129 (0x81) была
+  - при работе основной программы в holding-регистр 129 (0x81) была
     записана 1. В этом случае устанавливается соответствующий флаг,
     устройство перезагружается и остается в режиме bootloader'а 120
-    секунд;
+    секунд. Параметры связи устанавливаются в значения по умолчанию
+    (9600 8N2), адрес не меняется;
+  - при работе основной программы в holding-регистр 131 (0x83) была
+    записана 1. В этом случае устанавливается соответствующий флаг,
+    устройство перезагружается и остается в режиме bootloader'а 120
+    секунд. Параметры связи при этом не меняются (остаются такими же,
+    какими были в основной программе). **Поддерживается начиная с
+    версии загрузчика 1.3.0.** Также необходима поддержка со стороны
+    прошивки (подробнее - в changelog прошивки).
 
 Индикация режима bootloader'а: индикатор Status редко мигает. При
 заливке прошивки индикатор перестает менять состояние.
@@ -56,13 +65,7 @@ Bootloader реализует следующий функционал:
 ### Modbus
 
 Прошивка основной программы выполняется bootloader'ом, который получает
-ее по Modbus RTU. В режиме bootloader'а коммуникационные параметры
-фиксированы и не зависят от значений в EEPROM: 9600 8N2. По Modbus
-устройство можно перевести в режим bootloader'а, если во время работы
-основной программы записать 1 в holding-регистр 129 (0x81). В этом
-случае устанавливается соответствующий флаг, устройство
-перезагружается и остается в режиме bootloader'а 120
-секунд.
+ее по Modbus RTU.
 
 Modbus-адрес для прошивки в режиме bootloader'а следует выбирать
 следующим образом:
@@ -112,12 +115,10 @@ Write Single Register (0x06) и Write Multiple Registers (0x10). **Адреса
 Из основной программы доступны следующие holding-регистры.
 
 #### Переход в режим загрузчика:
-holding-регистр `0x81` (`129`) -- записать 1 - загрузчик будет работать с параметрами 9600N2.
-holding-регистр `0x83` (`131`) -- записать 1 - загрузчик будет работать с текущими настройками соединения. Нужна поддержка со стороны прошивки и загрузчик версии 1.3.0 и выше. Подробнее - в changelog прошивки.
-
-При записи "1" в регистр 131 возможны следущие варианты поведения:
-- если запись прошла успешно - устройство перезагрузилось в загрузчик на текущих параметрах соединения, можно продолжать процесс обновления прошивки
-- если вернулась ошибка Illegal Data Address - устройство не поддерживает данную функцию, нужно обновить прошивку и/или загрузчик
+* holding-регистр `0x81` (`129`) -- записать 1 - загрузчик будет работать с параметрами 9600N2.
+* holding-регистр `0x83` (`131`) -- записать 1 - загрузчик будет работать с текущими настройками соединения. Нужна поддержка со стороны прошивки и загрузчик версии 1.3.0 и выше. Подробнее - в changelog прошивки. Возможны следущие варианты поведения:
+  - если запись прошла успешно - устройство перезагрузилось в загрузчик на текущих параметрах соединения, можно продолжать процесс обновления прошивки
+  - если вернулась ошибка Illegal Data Address - устройство не поддерживает данную функцию, нужно обновить прошивку и/или загрузчик
 
 #### Сигнатура устройства
 Доступна для чтения через holding-регистры `290-301` командой `0x03`.
@@ -149,6 +150,9 @@ echo -e $(modbus_client -mrtu -pnone -s2 /dev/ttyRS485-1 -a1 -t0x03 -r330 -c8 | 
 Опции запуска:
 
 ```
+Welcome to Wiren Board flash tool.
+Version: 1.3.0, libmodbus version: 3.1.7
+
 Usage:
 
 Param  Description                                         Default value
@@ -157,8 +161,10 @@ Param  Description                                         Default value
 -s     Stopbits (2/1)                                   auto: (2sb->, ->1sb)
 -f     Firmware file                                             -
 -a     Modbus ID (slave addr)                                    1
--j     Jump to bootloader using reg 129 (9600N2)                 -
--J     Jump to bootloader using reg 131 (current baudrate)       -
+-j     Jump to bootloader using reg 129                          -
+         uses 9600N2 for communicate with bootloader (can be changed with -B key)
+-J     Jump to bootloader using reg 131                          -
+         uses baudrate from -b key to communicate with bootloader (don`t use -B)
 -u     Reset UART setting and MODBUS address to factory default  -
 -w     Reset device settings stored in flash to factory default  -
 -D     Debug mode                                                -
@@ -167,12 +173,22 @@ Param  Description                                         Default value
 -p     Parity                                                    N
 -t     Slave response timeout (in seconds)                       10.0
 
-Minimal flashing example:
-./wb-mcu-fw-flasher -d <port> -f <firmware.wbfw>
-Minimal format uart settings example:
-./wb-mcu-fw-flasher -d <port> -j -u
-Flashing running device example:
-./wb-mcu-fw-flasher -d <port> -a <modbus_addr> -j -u -f <firmware.wbfw>
+Examples:
+
+Flashing device that is in bootloader:
+    wb-mcu-fw-flasher -d <port> -f <firmware.wbfw>
+    useful for flashing device immediately after power on
+
+Reset uart settings:
+    wb-mcu-fw-flasher -d <port> -a10 -u
+
+Flashing running device:
+    wb-mcu-fw-flasher -d <port> -a <modbus_addr> -j -f <firmware.wbfw>
+
+Flashing running device using custom baudrate:
+    wb-mcu-fw-flasher -d <port> -a <modbus_addr> -b115200 -J -f <firmware.wbfw>
+    useful for flashing device behind Modbus-TCP gateway
+
 ```
 
 Опция -j позволяет прошивать устройство при его работе в основной
@@ -187,9 +203,8 @@ Flashing running device example:
 Если прошивка была записана ранее, то сигнатуру устройства можно
 прочесть командой
 
-``` 
-    export mbusaddr=1;  echo  -e `modbus_client --debug -mrtu -pnone -s2 /dev/ttyRS485-1 -a$mbusaddr -t0x03 -r290 -c 12 | grep Data | sed -e 's/0x00/\x/g' -e 's/Data://' -e 's/s//g'`|  xxd -r -p && echo ''
-    
+```bash
+export mbusaddr=1;  echo  -e `modbus_client --debug -mrtu -pnone -s2 /dev/ttyRS485-1 -a$mbusaddr -t0x03 -r290 -c 12 | grep Data | sed -e 's/0x00/\x/g' -e 's/Data://' -e 's/s//g'`|  xxd -r -p && echo ''
 ```
 
 Получите сигнатуру устройства, например, **wbmr6c**
@@ -199,8 +214,8 @@ WB-MR-MR6C\_MCU3\_3\_ULN2003\_1.9.4\_feature-bootloader\_1.9.3\_5932761.wbfw
 
 Прошейте устройство командой:
 
-``` 
-   wb-mcu-fw-flasher -j -d /dev/ttyRS485-1 -a 1 -f WB-MR-MR6C_MCU3_3_ULN2003_1.9.4_feature-bootloader_1.9.3_5932761.wbfw
+```bash
+wb-mcu-fw-flasher -j -d /dev/ttyRS485-1 -a 1 -f WB-MR-MR6C_MCU3_3_ULN2003_1.9.4_feature-bootloader_1.9.3_5932761.wbfw
 ```
 
 Успешный процесс прошивки выглядит следующим образом:
