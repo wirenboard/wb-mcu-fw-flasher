@@ -1,6 +1,7 @@
 buildDebSbuild(
     defaultTargets: 'wb5 wb6 bullseye-arm64 bullseye-host',
     repos: ['release', 'devTools'],
+    defaultRunLintian: true,
     customBuildSteps: {
         stage("Build win32") {
             dir("$PROJECT_SUBDIR") {
