@@ -1,5 +1,5 @@
 buildDebSbuild(
-    defaultTargets: 'wb5 wb6 bullseye-arm64 bullseye-host',
+    defaultTargets: 'bullseye-armhf bullseye-arm64 bullseye-host',
     repos: ['release', 'devTools'],
     defaultRunLintian: true,
     customBuildSteps: {
