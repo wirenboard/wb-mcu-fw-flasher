@@ -47,6 +47,10 @@ modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAd
 
 void deinitModbus(modbus_t *modbusConnection);
 
+int readString(modbus_t *ctx, char *buff, int start_addr, int len);
+
+int printFwSig(modbus_t *ctx);
+
 struct timeval parseResponseTimeout(float timeout_sec);
 
 void setResponseTimeout(struct timeval timeoutStruct, modbus_t *modbusContext);
@@ -120,6 +124,7 @@ int main(int argc, char *argv[])
     int   modbusID = 1;
     int   jumpCmdStandardBaud = 0;
     int   jumpCmdCurrentBaud = 0;
+    int   onlyPrintFwSig = 0;
     int   uartResetCmd = 0;
     int   eepromFormatCmd = 0;
     int   falshFsFormatCmd = 0;
@@ -130,7 +135,7 @@ int main(int argc, char *argv[])
 
     int c;
     int stopbits;
-    while ((c = getopt(argc, argv, "d:f:a:t:jJuewDb:p:s:B:")) != -1) {
+    while ((c = getopt(argc, argv, "d:f:a:t:jJLuewDb:p:s:B:")) != -1) {
         switch (c) {
         case 'd':
             device = optarg;
@@ -154,6 +159,9 @@ int main(int argc, char *argv[])
             break;
         case 'J':
             jumpCmdCurrentBaud = 1;
+            break;
+        case 'L':
+            onlyPrintFwSig = 1;
             break;
         case 'u':
             uartResetCmd = 1;
@@ -290,10 +298,37 @@ int main(int argc, char *argv[])
         }
         sleep(2);
     }
-
     deinitModbus(device_params_connection);
 
     float bl_response_timeout = (BL_MINIMAL_RESPONSE_TIMEOUT > responseTimeout) ? BL_MINIMAL_RESPONSE_TIMEOUT : responseTimeout;
+
+    if (onlyPrintFwSig) {
+        modbus_t *read_fwsig_connection;
+        if (inBootloader) {
+            struct UartSettings params = (jumpCmdCurrentBaud) ? deviceParams : bootloaderParams;
+            read_fwsig_connection = initModbus(device, params, modbusID, debug, bl_response_timeout);
+            if (printFwSig(read_fwsig_connection) < 0) {
+                fprintf(stderr, "Unable to read fw_sig: %s\n", modbus_strerror(errno));
+                deinitModbus(read_fwsig_connection);
+                exit(EXIT_FAILURE);
+            }
+        } else {  // We do not know actual device's state
+            read_fwsig_connection = initModbus(device, deviceParams, modbusID, debug, responseTimeout);
+            if (printFwSig(read_fwsig_connection) < 0) {
+                printf("Trying to read fw_sig at bootloader params...\n");
+                deinitModbus(read_fwsig_connection);
+                read_fwsig_connection = initModbus(device, bootloaderParams, modbusID, debug, bl_response_timeout);
+                if (printFwSig(read_fwsig_connection) < 0) {
+                    fprintf(stderr, "Unable to read fw_sig (at bootloader settings): %s\n", modbus_strerror(errno));
+                    deinitModbus(read_fwsig_connection);
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+        deinitModbus(read_fwsig_connection);
+        exit(EXIT_SUCCESS);
+    }
+
     modbus_t *bootloader_params_connection;
     if (jumpCmdCurrentBaud) {
         bootloader_params_connection = initModbus(device, deviceParams, modbusID, debug, bl_response_timeout);
@@ -504,6 +539,28 @@ modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAd
 void deinitModbus(modbus_t *modbusConnection){
     modbus_close(modbusConnection);
     modbus_free(modbusConnection);
+}
+
+int readString(modbus_t *ctx, char *buf, int start_addr, int len){
+    uint16_t vals[len];
+    int rc = modbus_read_registers(ctx, start_addr, len, vals);
+    if (rc >= 0) {
+        for (int i=0; i < rc; i++) {
+            buf[i] = (char)vals[i];
+        }
+    }
+    return rc;
+}
+
+int printFwSig(modbus_t *ctx){
+    int fwSigLen = 12;
+    int fwSigReg = 290;
+    char fwSig[fwSigLen];
+    int rc = readString(ctx, fwSig, fwSigReg, fwSigLen);
+    if (rc >= 0){
+        printf("fw_sig: %s\n", fwSig);
+    }
+    return rc;
 }
 
 struct timeval parseResponseTimeout(float timeout_sec) {
