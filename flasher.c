@@ -132,10 +132,14 @@ int main(int argc, char *argv[])
     int   inBootloader = 0;
     float responseTimeout = 10.0f; // Seconds
 
+    const struct option long_options[] = {
+		{ "get-fw-sig", no_argument, &onlyPrintFwSig, 1 },
+		{ NULL, 0, NULL, 0}
+	};
 
     int c;
     int stopbits;
-    while ((c = getopt(argc, argv, "d:f:a:t:jJLuewDb:p:s:B:")) != -1) {
+    while ((c = getopt_long(argc, argv, "d:f:a:t:jJuewDb:p:s:B:", long_options, NULL)) != -1) {
         switch (c) {
         case 'd':
             device = optarg;
@@ -159,9 +163,6 @@ int main(int argc, char *argv[])
             break;
         case 'J':
             jumpCmdCurrentBaud = 1;
-            break;
-        case 'L':
-            onlyPrintFwSig = 1;
             break;
         case 'u':
             uartResetCmd = 1;
@@ -216,7 +217,7 @@ int main(int argc, char *argv[])
                 printf ("Stopbits (-s <%d>) are not supported!\n", stopbits);
                 exit(EXIT_FAILURE);
             };
-        default:
+        case '?':
             printf("Parameters error.\n");
             break;
         }
