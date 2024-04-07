@@ -569,43 +569,34 @@ int probeConnection(modbus_t *ctx){
 }
 
 int printDeviceInfo(modbus_t *ctx){
-    FILE *stream;
-    ssize_t len;
-    char *buf;
     int rc = 0;
-
-    stream = open_memstream(&buf, &len);
 
     // Read bl-version
     char blVer[8];
     if (readString(ctx, blVer, 330, 8) >= 0){
-        fprintf(stream, "Bootloader version: %s\n", blVer);
+        printf("Bootloader version: %s\n", blVer);
     } else {
-        fprintf(stream, "Bootloader version read error: %s\n", modbus_strerror(errno));
+        printf("Bootloader version read error: %s\n", modbus_strerror(errno));
         rc = errno;
     }
 
     // Read fw-version
     char fwVer[15];
     if (readString(ctx, fwVer, 250, 15) >= 0){
-        fprintf(stream, "Firmware version: %s\n", fwVer);
+        printf("Firmware version: %s\n", fwVer);
     } else {
-        fprintf(stream, "Firmware version read error: %s; Maybe device is in bootloader?\n", modbus_strerror(errno));
+        printf("Firmware version read error: %s; Maybe device is in bootloader?\n", modbus_strerror(errno));
         // do not set rc: bootloader cannot read fw-version
     }
 
     // Read fw-sig
     char fwSig[12];
     if (readString(ctx, fwSig, 290, 12) >= 0){
-        fprintf(stream, "Firmware signature (fw-sig): %s\nDownload firmwares: https://fw-releases.wirenboard.com/?prefix=fw/by-signature/%s/\n", fwSig, fwSig);
+        printf("Firmware signature (fw-sig): %s\nDownload firmwares: https://fw-releases.wirenboard.com/?prefix=fw/by-signature/%s/\n", fwSig, fwSig);
     } else {
-        fprintf(stream, "Firmware signature (fw-sig) read error: %s\n", modbus_strerror(errno));
+        printf("Firmware signature (fw-sig) read error: %s\n", modbus_strerror(errno));
         rc = errno;
     }
-
-    fclose(stream);
-    printf("%s", buf);
-    free(buf);
     return rc;
 }
 
