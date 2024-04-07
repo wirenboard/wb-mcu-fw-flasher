@@ -49,7 +49,9 @@ void deinitModbus(modbus_t *modbusConnection);
 
 int readString(modbus_t *ctx, char *buff, int start_addr, int len);
 
-int printFwSig(modbus_t *ctx);
+int probeConnection(modbus_t *ctx);
+
+int printDeviceInfo(modbus_t *ctx);
 
 struct timeval parseResponseTimeout(float timeout_sec);
 
@@ -101,6 +103,10 @@ int main(int argc, char *argv[])
         printf("Flashing running device using custom baudrate:\n");
         printf("    %s -d <port> -a <modbus_addr> -b115200 -J -f <firmware.wbfw>\n", argv[0]);
         printf("    useful for flashing device behind Modbus-TCP gateway\n\n");
+
+        printf("Only read device info (no flashing):\n");
+        printf("    %s -d <port> -a10 --get-device-info\n\n", argv[0]);
+
         return 0;
     };
 
@@ -124,7 +130,7 @@ int main(int argc, char *argv[])
     int   modbusID = 1;
     int   jumpCmdStandardBaud = 0;
     int   jumpCmdCurrentBaud = 0;
-    int   onlyPrintFwSig = 0;
+    int   onlyReadInfo = 0;
     int   uartResetCmd = 0;
     int   eepromFormatCmd = 0;
     int   falshFsFormatCmd = 0;
@@ -133,7 +139,7 @@ int main(int argc, char *argv[])
     float responseTimeout = 10.0f; // Seconds
 
     const struct option long_options[] = {
-		{ "get-fw-sig", no_argument, &onlyPrintFwSig, 1 },
+		{ "get-device-info", no_argument, &onlyReadInfo, 1 },
 		{ NULL, 0, NULL, 0}
 	};
 
@@ -303,30 +309,34 @@ int main(int argc, char *argv[])
 
     float bl_response_timeout = (BL_MINIMAL_RESPONSE_TIMEOUT > responseTimeout) ? BL_MINIMAL_RESPONSE_TIMEOUT : responseTimeout;
 
-    if (onlyPrintFwSig) {
-        modbus_t *read_fwsig_connection;
+    if (onlyReadInfo) {
+        modbus_t *read_info_connection;
         if (inBootloader) {
             struct UartSettings params = (jumpCmdCurrentBaud) ? deviceParams : bootloaderParams;
-            read_fwsig_connection = initModbus(device, params, modbusID, debug, bl_response_timeout);
-            if (printFwSig(read_fwsig_connection) < 0) {
-                fprintf(stderr, "Unable to read fw_sig: %s\n", modbus_strerror(errno));
-                deinitModbus(read_fwsig_connection);
+            read_info_connection = initModbus(device, params, modbusID, debug, bl_response_timeout);
+            if (probeConnection(read_info_connection) < 0) {
+                fprintf(stderr, "Failed to connect (%d %s): %s\n", modbusID, device, modbus_strerror(errno));
+                deinitModbus(read_info_connection);
                 exit(EXIT_FAILURE);
             }
         } else {  // We do not know actual device's state
-            read_fwsig_connection = initModbus(device, deviceParams, modbusID, debug, responseTimeout);
-            if (printFwSig(read_fwsig_connection) < 0) {
-                printf("Trying to read fw_sig at bootloader params...\n");
-                deinitModbus(read_fwsig_connection);
-                read_fwsig_connection = initModbus(device, bootloaderParams, modbusID, debug, bl_response_timeout);
-                if (printFwSig(read_fwsig_connection) < 0) {
-                    fprintf(stderr, "Unable to read fw_sig (at bootloader settings): %s\n", modbus_strerror(errno));
-                    deinitModbus(read_fwsig_connection);
+            read_info_connection = initModbus(device, deviceParams, modbusID, debug, responseTimeout);
+            if (probeConnection(read_info_connection) < 0) {
+                printf("Trying to probe (%d %s) at bootloader params...\n", modbusID, device);
+                deinitModbus(read_info_connection);
+                read_info_connection = initModbus(device, bootloaderParams, modbusID, debug, bl_response_timeout);
+                if (probeConnection(read_info_connection) < 0) {
+                    fprintf(stderr, "Failed to connect (%d %s) at bootloader settings: %s\n", modbusID, device, modbus_strerror(errno));
+                    deinitModbus(read_info_connection);
                     exit(EXIT_FAILURE);
                 }
             }
         }
-        deinitModbus(read_fwsig_connection);
+        int rc = printDeviceInfo(read_info_connection);
+        deinitModbus(read_info_connection);
+        if (rc < 0) {
+            exit(EXIT_FAILURE);
+        }
         exit(EXIT_SUCCESS);
     }
 
@@ -553,14 +563,49 @@ int readString(modbus_t *ctx, char *buf, int start_addr, int len){
     return rc;
 }
 
-int printFwSig(modbus_t *ctx){
-    int fwSigLen = 12;
-    int fwSigReg = 290;
-    char fwSig[fwSigLen];
-    int rc = readString(ctx, fwSig, fwSigReg, fwSigLen);
-    if (rc >= 0){
-        printf("fw_sig: %s\n", fwSig);
+int probeConnection(modbus_t *ctx){
+    uint16_t fwSig[12];  // reading fw-sig is supported both in firmware and bootloader
+    return modbus_read_registers(ctx, 290, 12, fwSig);
+}
+
+int printDeviceInfo(modbus_t *ctx){
+    FILE *stream;
+    ssize_t len;
+    char *buf;
+    int rc = 0;
+
+    stream = open_memstream(&buf, &len);
+
+    // Read bl-version
+    char blVer[8];
+    if (readString(ctx, blVer, 330, 8) >= 0){
+        fprintf(stream, "Bootloader version: %s\n", blVer);
+    } else {
+        fprintf(stream, "Bootloader version read error: %s\n", modbus_strerror(errno));
+        rc = errno;
     }
+
+    // Read fw-version
+    char fwVer[15];
+    if (readString(ctx, fwVer, 250, 15) >= 0){
+        fprintf(stream, "Firmware version: %s\n", fwVer);
+    } else {
+        fprintf(stream, "Firmware version read error: %s; Maybe device is in bootloader?\n", modbus_strerror(errno));
+        // do not set rc: bootloader cannot read fw-version
+    }
+
+    // Read fw-sig
+    char fwSig[12];
+    if (readString(ctx, fwSig, 290, 12) >= 0){
+        fprintf(stream, "Firmware signature (fw-sig): %s\nDownload firmwares: https://fw-releases.wirenboard.com/?prefix=fw/by-signature/%s/\n", fwSig, fwSig);
+    } else {
+        fprintf(stream, "Firmware signature (fw-sig) read error: %s\n", modbus_strerror(errno));
+        rc = errno;
+    }
+
+    fclose(stream);
+    printf("%s", buf);
+    free(buf);
     return rc;
 }
 
