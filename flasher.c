@@ -21,6 +21,13 @@
 #define HOLD_REG_CMD_EEPROM_ERASE           1001
 #define HOLD_REG_CMD_FLASHFS_ERASE          1002
 
+#define HOLD_REG_BOOTLOADER_VERSION 330
+#define BOOTLOADER_VERSION_LEN      8
+#define HOLD_REG_FIRMWARE_SIGNATURE 290
+#define FW_SIG_LEN                  12
+#define HOLD_REG_FIRMWARE_VERSION   250
+#define FW_VERSION_LEN              15
+
 #define BL_MINIMAL_RESPONSE_TIMEOUT    5.0
 
 #define xstr(a) str(a)
@@ -47,7 +54,7 @@ modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAd
 
 void deinitModbus(modbus_t *modbusConnection);
 
-int readString(modbus_t *ctx, char *buff, int startAddr, int len);
+char *mbReadString(modbus_t *ctx, int startAddr, int len);
 
 int probeConnection(modbus_t *ctx);
 
@@ -539,8 +546,8 @@ modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAd
         exit(EXIT_FAILURE);
     };
 
-    struct timeval responseTimeout = parseResponseTimeout(responseTimeout);
-    setResponseTimeout(responseTimeout, mbConnection);
+    struct timeval timeout = parseResponseTimeout(responseTimeout);
+    setResponseTimeout(timeout, mbConnection);
 
     modbus_flush(mbConnection);
     modbus_set_debug(mbConnection, debug);
@@ -552,51 +559,55 @@ void deinitModbus(modbus_t *modbusConnection){
     modbus_free(modbusConnection);
 }
 
-int readString(modbus_t *ctx, char *buf, int startAddr, int len){
+char *mbReadString(modbus_t *ctx, int startAddr, int len){
     uint16_t vals[len];
     int rc = modbus_read_registers(ctx, startAddr, len, vals);
     if (rc >= 0) {
+        char *buf = malloc(len + 1);
         for (int i=0; i < rc; i++) {
             buf[i] = (char)vals[i];
         }
+        buf[len] = "\0";
+        return buf;
     }
-    return rc;
+    return NULL;
 }
 
 int probeConnection(modbus_t *ctx){
-    uint16_t fwSig[12];  // reading fw-sig is supported both in firmware and bootloader
-    return modbus_read_registers(ctx, 290, 12, fwSig);
+    uint16_t firmwareSignature[FW_SIG_LEN];  // reading fw-sig is supported both in firmware and bootloader
+    return modbus_read_registers(ctx, HOLD_REG_FIRMWARE_SIGNATURE, FW_SIG_LEN, firmwareSignature);
 }
 
 int printDeviceInfo(modbus_t *ctx){
     int rc = 0;
 
-    // Read bl-version
-    char blVer[8];
-    if (readString(ctx, blVer, 330, 8) >= 0){
-        printf("Bootloader version: %s\n", blVer);
-    } else {
+    char *bootloaderVersion = mbReadString(ctx, HOLD_REG_BOOTLOADER_VERSION, BOOTLOADER_VERSION_LEN);
+    if (bootloaderVersion == NULL){
         printf("Bootloader version read error: %s\n", modbus_strerror(errno));
         rc = errno;
-    }
-
-    // Read fw-version
-    char fwVer[15];
-    if (readString(ctx, fwVer, 250, 15) >= 0){
-        printf("Firmware version: %s\n", fwVer);
     } else {
+        printf("Bootloader version: %s\n", bootloaderVersion);
+    }
+    free(bootloaderVersion);
+
+    char *firmwareVersion = mbReadString(ctx, HOLD_REG_FIRMWARE_VERSION, FW_VERSION_LEN);
+    if (firmwareVersion == NULL){
         printf("Firmware version read error: %s; Maybe device is in bootloader?\n", modbus_strerror(errno));
         // do not set rc: bootloader cannot read fw-version
-    }
-
-    // Read fw-sig
-    char fwSig[12];
-    if (readString(ctx, fwSig, 290, 12) >= 0){
-        printf("Firmware signature (fw-sig): %s\nDownload firmwares: https://fw-releases.wirenboard.com/?prefix=fw/by-signature/%s/\n", fwSig, fwSig);
     } else {
+        printf("Firmware version: %s\n", firmwareVersion);
+    }
+    free(firmwareVersion);
+
+    char *firmwareSignature = mbReadString(ctx, HOLD_REG_FIRMWARE_SIGNATURE, FW_SIG_LEN);
+    if (firmwareSignature == NULL){
         printf("Firmware signature (fw-sig) read error: %s\n", modbus_strerror(errno));
         rc = errno;
+    } else {
+        printf("Firmware signature (fw-sig): %s\nDownload firmwares: https://fw-releases.wirenboard.com/?prefix=fw/by-signature/%s/\n", firmwareSignature, firmwareSignature);
     }
+    free(firmwareSignature);
+
     return rc;
 }
 
