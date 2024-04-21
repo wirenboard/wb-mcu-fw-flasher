@@ -47,13 +47,13 @@ modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAd
 
 void deinitModbus(modbus_t *modbusConnection);
 
-int readString(modbus_t *ctx, char *buff, int start_addr, int len);
+int readString(modbus_t *ctx, char *buff, int startAddr, int len);
 
 int probeConnection(modbus_t *ctx);
 
 int printDeviceInfo(modbus_t *ctx);
 
-struct timeval parseResponseTimeout(float timeout_sec);
+struct timeval parseResponseTimeout(float timeoutSec);
 
 void setResponseTimeout(struct timeval timeoutStruct, modbus_t *modbusContext);
 
@@ -138,14 +138,14 @@ int main(int argc, char *argv[])
     int   inBootloader = 0;
     float responseTimeout = 10.0f; // Seconds
 
-    const struct option long_options[] = {
+    const struct option longOptions[] = {
 		{ "get-device-info", no_argument, &onlyReadInfo, 1 },
 		{ NULL, 0, NULL, 0}
 	};
 
     int c;
     int stopbits;
-    while ((c = getopt_long(argc, argv, "d:f:a:t:jJuewDb:p:s:B:", long_options, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:f:a:t:jJuewDb:p:s:B:", longOptions, NULL)) != -1) {
         switch (c) {
         case 'd':
             device = optarg;
@@ -238,21 +238,21 @@ int main(int argc, char *argv[])
 #if defined(_WIN32)
     // We expect device in a form of "COMxx". So strip leading "." and "\", and trailing ":".
     if (device) {
-        size_t start_pos = 0, end_pos = strlen(device);
+        size_t startPos = 0, endPos = strlen(device);
 
-        for (start_pos=0;
-            (start_pos < strlen(device)) && ((device[start_pos] == '.') || (device[start_pos] == '\\'));
-            ++start_pos) {};
+        for (startPos=0;
+            (startPos < strlen(device)) && ((device[startPos] == '.') || (device[startPos] == '\\'));
+            ++startPos) {};
 
-        for (end_pos=strlen(device) - 1;
-            (end_pos >=0) && (device[end_pos] == ':');
-            --end_pos) {};
+        for (endPos=strlen(device) - 1;
+            (endPos >=0) && (device[endPos] == ':');
+            --endPos) {};
 
-        char device_stripped[32] = {};
-        strncpy(device_stripped, device + start_pos, min(sizeof(device_stripped) - 1, end_pos - start_pos + 1));
+        char deviceStripped[32] = {};
+        strncpy(deviceStripped, device + startPos, min(sizeof(deviceStripped) - 1, endPos - startPos + 1));
 
         char buffer[40] = "\\\\.\\";
-        strncpy(buffer + strlen(buffer), device_stripped, sizeof(buffer) - strlen(buffer));
+        strncpy(buffer + strlen(buffer), deviceStripped, sizeof(buffer) - strlen(buffer));
 
         device = buffer;
     }
@@ -264,13 +264,13 @@ int main(int argc, char *argv[])
     }
 
     //Connecting on device's params
-    modbus_t *device_params_connection = initModbus(device, deviceParams, modbusID, debug, responseTimeout);
+    modbus_t *deviceParamsConnection = initModbus(device, deviceParams, modbusID, debug, responseTimeout);
 
     printf("%s opened successfully.\n", device);
 
     if (jumpCmdStandardBaud) {
         printf("Send jump to bootloader command and wait 2 seconds...\n");
-        if (modbus_write_register(device_params_connection, HOLD_REG_JUMP_TO_BOOT_STANDARD_BAUD, 1) == 1) {
+        if (modbus_write_register(deviceParamsConnection, HOLD_REG_JUMP_TO_BOOT_STANDARD_BAUD, 1) == 1) {
             printf("Ok, device will jump to bootloader.\n");
             inBootloader = 1;
         } else {
@@ -279,7 +279,7 @@ int main(int argc, char *argv[])
                 (errno == EMBXILVAL))  // some of ours fw report illegal data value on nonexistent register
             {
                 fprintf(stderr, "Device probably doesn't support in-field firmware upgrade\n");
-                deinitModbus(device_params_connection);
+                deinitModbus(deviceParamsConnection);
                 exit(EXIT_FAILURE);
             }
             //Devices firmwares have bug: writing to  HOLD_REG_JUMP_TO_BOOTLOADER at low BDs causes modbus timeout error.
@@ -289,7 +289,7 @@ int main(int argc, char *argv[])
         sleep(2);    // wait 2 seconds
     } else if (jumpCmdCurrentBaud) {
         printf("Try to jump to bootloader using current baudrate...\n");
-        if (modbus_write_register(device_params_connection, HOLD_REG_JUMP_TO_BOOT_CURRENT_BAUD, 1) == 1) {
+        if (modbus_write_register(deviceParamsConnection, HOLD_REG_JUMP_TO_BOOT_CURRENT_BAUD, 1) == 1) {
             printf("Ok, device supports this. Baudrate %d will be used for flashing.\n", deviceParams.baudrate);
             inBootloader = 1;
         } else {
@@ -300,57 +300,57 @@ int main(int argc, char *argv[])
             } else {
                 fprintf(stderr, "Other error, check device connection parameters.\n");
             }
-            deinitModbus(device_params_connection);
+            deinitModbus(deviceParamsConnection);
             exit(EXIT_FAILURE);
         }
         sleep(2);
     }
-    deinitModbus(device_params_connection);
+    deinitModbus(deviceParamsConnection);
 
-    float bl_response_timeout = (BL_MINIMAL_RESPONSE_TIMEOUT > responseTimeout) ? BL_MINIMAL_RESPONSE_TIMEOUT : responseTimeout;
+    float blResponseTimeout = (BL_MINIMAL_RESPONSE_TIMEOUT > responseTimeout) ? BL_MINIMAL_RESPONSE_TIMEOUT : responseTimeout;
 
     if (onlyReadInfo) {
-        modbus_t *read_info_connection;
+        modbus_t *readInfoConnection;
         if (inBootloader) {
             struct UartSettings params = (jumpCmdCurrentBaud) ? deviceParams : bootloaderParams;
-            read_info_connection = initModbus(device, params, modbusID, debug, bl_response_timeout);
-            if (probeConnection(read_info_connection) < 0) {
+            readInfoConnection = initModbus(device, params, modbusID, debug, blResponseTimeout);
+            if (probeConnection(readInfoConnection) < 0) {
                 fprintf(stderr, "Failed to connect (%d %s): %s\n", modbusID, device, modbus_strerror(errno));
-                deinitModbus(read_info_connection);
+                deinitModbus(readInfoConnection);
                 exit(EXIT_FAILURE);
             }
         } else {  // We do not know actual device's state
-            read_info_connection = initModbus(device, deviceParams, modbusID, debug, responseTimeout);
-            if (probeConnection(read_info_connection) < 0) {
+            readInfoConnection = initModbus(device, deviceParams, modbusID, debug, responseTimeout);
+            if (probeConnection(readInfoConnection) < 0) {
                 printf("Trying to probe (%d %s) at bootloader params...\n", modbusID, device);
-                deinitModbus(read_info_connection);
-                read_info_connection = initModbus(device, bootloaderParams, modbusID, debug, bl_response_timeout);
-                if (probeConnection(read_info_connection) < 0) {
+                deinitModbus(readInfoConnection);
+                readInfoConnection = initModbus(device, bootloaderParams, modbusID, debug, blResponseTimeout);
+                if (probeConnection(readInfoConnection) < 0) {
                     fprintf(stderr, "Failed to connect (%d %s) at bootloader settings: %s\n", modbusID, device, modbus_strerror(errno));
-                    deinitModbus(read_info_connection);
+                    deinitModbus(readInfoConnection);
                     exit(EXIT_FAILURE);
                 }
             }
         }
-        int rc = printDeviceInfo(read_info_connection);
-        deinitModbus(read_info_connection);
+        int rc = printDeviceInfo(readInfoConnection);
+        deinitModbus(readInfoConnection);
         if (rc < 0) {
             exit(EXIT_FAILURE);
         }
         exit(EXIT_SUCCESS);
     }
 
-    modbus_t *bootloader_params_connection;
+    modbus_t *bootloaderParamsConnection;
     if (jumpCmdCurrentBaud) {
-        bootloader_params_connection = initModbus(device, deviceParams, modbusID, debug, bl_response_timeout);
+        bootloaderParamsConnection = initModbus(device, deviceParams, modbusID, debug, blResponseTimeout);
     } else {
         //Connecting on Bootloader's params
-        bootloader_params_connection = initModbus(device, bootloaderParams, modbusID, debug, bl_response_timeout);
+        bootloaderParamsConnection = initModbus(device, bootloaderParams, modbusID, debug, blResponseTimeout);
     }
 
     if (uartResetCmd) {
         printf("Send reset UART settings and modbus address command...\n");
-        if (modbus_write_register(bootloader_params_connection, HOLD_REG_CMD_UART_SETTINGS_RESET, 1) == 1) {
+        if (modbus_write_register(bootloaderParamsConnection, HOLD_REG_CMD_UART_SETTINGS_RESET, 1) == 1) {
             printf("Ok.\n");
             inBootloader = 1;
         } else {
@@ -361,7 +361,7 @@ int main(int argc, char *argv[])
 
     if (eepromFormatCmd) {
         printf("Send format EEPROM command...\n");
-        if (modbus_write_register(bootloader_params_connection, HOLD_REG_CMD_EEPROM_ERASE, 1) == 1) {
+        if (modbus_write_register(bootloaderParamsConnection, HOLD_REG_CMD_EEPROM_ERASE, 1) == 1) {
             printf("Ok.\n");
             inBootloader = 1;
         } else {
@@ -372,7 +372,7 @@ int main(int argc, char *argv[])
 
     if (falshFsFormatCmd) {
         printf("Send format FlashFS command...\n");
-        if (modbus_write_register(bootloader_params_connection, HOLD_REG_CMD_FLASHFS_ERASE, 1) == 1) {
+        if (modbus_write_register(bootloaderParamsConnection, HOLD_REG_CMD_FLASHFS_ERASE, 1) == 1) {
             printf("Ok.\n");
             inBootloader = 1;
         } else {
@@ -393,7 +393,7 @@ int main(int argc, char *argv[])
     FILE *file = fopen(fileName, "rb");
     if (file == NULL) {
         fprintf(stderr, "Error while opening firmware file: %s\n", strerror(errno));
-        deinitModbus(bootloader_params_connection);
+        deinitModbus(bootloaderParamsConnection);
         exit(EXIT_FAILURE);
     }
 
@@ -416,7 +416,7 @@ int main(int argc, char *argv[])
 
     printf("\nSending info block...");
     while (errorCount < MAX_ERROR_COUNT) {
-        if (modbus_write_registers(bootloader_params_connection, INFO_BLOCK_REG_ADDRESS, INFO_BLOCK_SIZE / 2, &data[filePointer / 2]) == (INFO_BLOCK_SIZE / 2)) {
+        if (modbus_write_registers(bootloaderParamsConnection, INFO_BLOCK_REG_ADDRESS, INFO_BLOCK_SIZE / 2, &data[filePointer / 2]) == (INFO_BLOCK_SIZE / 2)) {
             printf(" OK\n"); fflush(stdout);
             filePointer += INFO_BLOCK_SIZE;
             break;
@@ -425,13 +425,13 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Error while sending info block: %s\n", modbus_strerror(errno));
         if (errno == EMBXSFAIL) {
             fprintf(stderr, "Data format is invalid or firmware signature doesn't match the device\n");
-            deinitModbus(bootloader_params_connection);
+            deinitModbus(bootloaderParamsConnection);
             exit(EXIT_FAILURE);
         } else if ((errno == EMBXILADD) ||
                    (errno == EMBXILVAL))  // some of our fws report illegal data value on nonexistent register
         {
             fprintf(stderr, "Not in bootloader mode? Try repeating with -j\n");
-            deinitModbus(bootloader_params_connection);
+            deinitModbus(bootloaderParamsConnection);
             exit(EXIT_FAILURE);
         }
         fflush(stderr);
@@ -441,7 +441,7 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Error while sending info block.\n");
             fprintf(stderr, "Check connection, jump to bootloader and try again.\n");
             fflush(stderr);
-            deinitModbus(bootloader_params_connection);
+            deinitModbus(bootloaderParamsConnection);
             exit(EXIT_FAILURE);
         }
     }
@@ -452,7 +452,7 @@ int main(int argc, char *argv[])
         printf("\rSending data block %u of %u...",
                (filePointer - INFO_BLOCK_SIZE) / DATA_BLOCK_SIZE + 1,
                (filesize - INFO_BLOCK_SIZE) / DATA_BLOCK_SIZE); fflush(stdout);
-        if (modbus_write_registers(bootloader_params_connection, DATA_BLOCK_REG_ADDRESS, DATA_BLOCK_SIZE / 2, &data[filePointer / 2]) == (DATA_BLOCK_SIZE / 2)) {
+        if (modbus_write_registers(bootloaderParamsConnection, DATA_BLOCK_REG_ADDRESS, DATA_BLOCK_SIZE / 2, &data[filePointer / 2]) == (DATA_BLOCK_SIZE / 2)) {
             filePointer += DATA_BLOCK_SIZE;
             errorCount = 0;
         } else {
@@ -460,7 +460,7 @@ int main(int argc, char *argv[])
             fprintf(stderr, "Error while sending data block: %s\n", modbus_strerror(errno));
             if (errno == EMBXSFAIL) {
                 fprintf(stderr, "Firmware file is corrupted?\n");
-                deinitModbus(bootloader_params_connection);
+                deinitModbus(bootloaderParamsConnection);
                 exit(EXIT_FAILURE);
             }
             fflush(stderr);
@@ -468,7 +468,7 @@ int main(int argc, char *argv[])
                 filePointer += DATA_BLOCK_SIZE;
             }
             if (errorCount >= MAX_ERROR_COUNT * 2) {
-                deinitModbus(bootloader_params_connection);
+                deinitModbus(bootloaderParamsConnection);
                 exit(EXIT_FAILURE);
             }
             errorCount++;
@@ -477,7 +477,7 @@ int main(int argc, char *argv[])
 
     printf(" OK.\n\nAll done!\n");
 
-    deinitModbus(bootloader_params_connection);
+    deinitModbus(bootloaderParamsConnection);
 
     fclose(file);
     free(data);
@@ -510,41 +510,41 @@ int ensureCharIn(char param, const char array[], unsigned int arrayLen) {
 
 modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAddr, int debug, float responseTimeout){
 #if defined(_WIN32)  // different stopbits for receiving & transmitting are supported only in posix
-    modbus_t *mb_connection = modbus_new_rtu(device, deviceParams.baudrate, deviceParams.parity, deviceParams.databits, deviceParams.stopbits);
+    modbus_t *mbConnection = modbus_new_rtu(device, deviceParams.baudrate, deviceParams.parity, deviceParams.databits, deviceParams.stopbits);
 #else
     int stopbitsReceiving = (stopbitsAreForced == 0) ? 1 : deviceParams.stopbits;
-    modbus_t *mb_connection = modbus_new_rtu_different_stopbits(device, deviceParams.baudrate, deviceParams.parity, deviceParams.databits, deviceParams.stopbits, stopbitsReceiving);
+    modbus_t *mbConnection = modbus_new_rtu_different_stopbits(device, deviceParams.baudrate, deviceParams.parity, deviceParams.databits, deviceParams.stopbits, stopbitsReceiving);
 #endif
 
-    if (mb_connection == NULL) {
+    if (mbConnection == NULL) {
         fprintf(stderr, "Unknown error.\n");
         exit(EXIT_FAILURE);
     }
 
-    if (modbus_connect(mb_connection) != 0) {
+    if (modbus_connect(mbConnection) != 0) {
         fprintf(stderr, "Connection failed: %s\n", modbus_strerror(errno));
-        modbus_free(mb_connection);
+        modbus_free(mbConnection);
         exit(EXIT_FAILURE);
     }
 
-    modbus_set_error_recovery(mb_connection, MODBUS_ERROR_RECOVERY_PROTOCOL);
+    modbus_set_error_recovery(mbConnection, MODBUS_ERROR_RECOVERY_PROTOCOL);
 
-    if (modbus_set_slave(mb_connection, slaveAddr) != 0) {
+    if (modbus_set_slave(mbConnection, slaveAddr) != 0) {
         if (errno == EINVAL) {
             fprintf(stderr, "Invalid slave id!\nChoose from 0 to 247\n");
         } else {
             fprintf(stderr, "Unknown error on setting slave id.\n");
         }
-        modbus_free(mb_connection);
+        modbus_free(mbConnection);
         exit(EXIT_FAILURE);
     };
 
-    struct timeval response_timeout = parseResponseTimeout(responseTimeout);
-    setResponseTimeout(response_timeout, mb_connection);
+    struct timeval responseTimeout = parseResponseTimeout(responseTimeout);
+    setResponseTimeout(responseTimeout, mbConnection);
 
-    modbus_flush(mb_connection);
-    modbus_set_debug(mb_connection, debug);
-    return mb_connection;
+    modbus_flush(mbConnection);
+    modbus_set_debug(mbConnection, debug);
+    return mbConnection;
 }
 
 void deinitModbus(modbus_t *modbusConnection){
@@ -552,9 +552,9 @@ void deinitModbus(modbus_t *modbusConnection){
     modbus_free(modbusConnection);
 }
 
-int readString(modbus_t *ctx, char *buf, int start_addr, int len){
+int readString(modbus_t *ctx, char *buf, int startAddr, int len){
     uint16_t vals[len];
-    int rc = modbus_read_registers(ctx, start_addr, len, vals);
+    int rc = modbus_read_registers(ctx, startAddr, len, vals);
     if (rc >= 0) {
         for (int i=0; i < rc; i++) {
             buf[i] = (char)vals[i];
@@ -600,13 +600,13 @@ int printDeviceInfo(modbus_t *ctx){
     return rc;
 }
 
-struct timeval parseResponseTimeout(float timeout_sec) {
-    long decimal_part = (long)timeout_sec;
-    float fract_part = timeout_sec - decimal_part;
-    struct timeval response_timeout;
-    response_timeout.tv_sec = decimal_part;
-    response_timeout.tv_usec = (long)(fract_part * 1000000); // Microseconds
-    return response_timeout;
+struct timeval parseResponseTimeout(float timeoutSec) {
+    long decimalPart = (long)timeoutSec;
+    float fractPart = timeoutSec - decimalPart;
+    struct timeval responseTimeout;
+    responseTimeout.tv_sec = decimalPart;
+    responseTimeout.tv_usec = (long)(fractPart * 1000000); // Microseconds
+    return responseTimeout;
 }
 
 void setResponseTimeout(struct timeval timeoutStruct, modbus_t *modbusContext){
