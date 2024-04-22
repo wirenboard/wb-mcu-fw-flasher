@@ -567,7 +567,7 @@ char *mbReadString(modbus_t *ctx, int startAddr, int len){
         for (int i=0; i < rc; i++) {
             buf[i] = (char)vals[i];
         }
-        buf[len] = "\0";
+        buf[rc] = '\0';
         return buf;
     }
     return NULL;
