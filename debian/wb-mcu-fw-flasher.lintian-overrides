@@ -1,0 +1,2 @@
+wb-mcu-fw-flasher: statically-linked-binary
+# Justification: required for target compatibility
