@@ -1,3 +1,9 @@
+wb-mcu-fw-flasher (1.4.1) stable; urgency=medium
+
+  * Update README.md
+
+ -- Ilia Skochilov <ilia.skochilov@wirenboard.com>  Fri, 7 Feb 2025 09:35:00 +0300
+
 wb-mcu-fw-flasher (1.4.0) stable; urgency=medium
 
   * Add --get-device-info arg
