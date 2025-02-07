@@ -10,3 +10,5 @@ Package: wb-mcu-fw-flasher
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Firmware update tool for Wiren Board Modbus devices (WB-M*)
+  This tool provides firmware and bootloader update functionality for Wiren Board devices.
+  It includes build scripts and helper commands for flashing MCU firmware.
