@@ -1,3 +1,9 @@
+wb-mcu-fw-flasher (1.4.1) stable; urgency=medium
+
+  * Don't exit on slave error when sending data blocks
+
+ -- Pavel Gasheev <pavel.gasheev@wirenboard.com>  Fri, 07 Mar 2025 19:55:09 +0300
+
 wb-mcu-fw-flasher (1.4.0) stable; urgency=medium
 
   * Add --get-device-info arg
