@@ -465,11 +465,6 @@ int main(int argc, char *argv[])
         } else {
             printf("\n"); fflush(stdout);
             fprintf(stderr, "Error while sending data block: %s\n", modbus_strerror(errno));
-            if (errno == EMBXSFAIL) {
-                fprintf(stderr, "Firmware file is corrupted?\n");
-                deinitModbus(bootloaderParamsConnection);
-                exit(EXIT_FAILURE);
-            }
             fflush(stderr);
             if (errorCount == MAX_ERROR_COUNT) {
                 filePointer += DATA_BLOCK_SIZE;
