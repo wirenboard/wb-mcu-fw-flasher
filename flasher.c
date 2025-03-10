@@ -41,6 +41,7 @@ struct UartSettings {
     char parity;
     int databits;
     int stopbits;
+    int stopbitsAreForced;
 } UartSettings;
 
 const int allowedBaudrates[] = {1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400};
@@ -50,7 +51,7 @@ const char allowedParity[] = {'N', 'E', 'O'};
 int ensureIntIn(int param, const int array[], unsigned int arrayLen);
 int ensureCharIn(char param, const char array[], unsigned int arrayLen);
 
-modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAddr, int debug, float responseTimeout);
+modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAddr, int debug, float responseTimeout, int forceTwoStopbits);
 
 void deinitModbus(modbus_t *modbusConnection);
 
@@ -63,8 +64,6 @@ int printDeviceInfo(modbus_t *ctx);
 struct timeval parseResponseTimeout(float timeoutSec);
 
 void setResponseTimeout(struct timeval timeoutStruct, modbus_t *modbusContext);
-
-int stopbitsAreForced = 0;
 
 int main(int argc, char *argv[])
 {
@@ -79,7 +78,7 @@ int main(int argc, char *argv[])
         printf("-s     Stopbits (2/1)                                              2\n");
 #else
         printf("-d     Serial port (e.g. \"/dev/ttyRS485-1\")                      -\n");
-        printf("-s     Stopbits (2/1)                                   auto: (2sb->, ->1sb)\n");
+        printf("-s     Stopbits used to communicate with firmware (2/1)   auto: (2sb->, ->1sb)\n");
 #endif
         printf("-f     Firmware file                                             -\n");
         printf("-a     Modbus ID (slave addr)                                    1\n");
@@ -121,7 +120,8 @@ int main(int argc, char *argv[])
         .baudrate = 9600,
         .parity = 'N',
         .databits = 8,
-        .stopbits = 2
+        .stopbits = 2,
+        .stopbitsAreForced = 1
     };
 
     struct UartSettings deviceParams = { //To send -j to device. Filled from user input
@@ -215,16 +215,16 @@ int main(int argc, char *argv[])
             };
         case 's':
         /*
-        -s arg provides stopbits for both alive-device & in-bootloader connections;
+        -s arg provides stopbits only for alive-device connections;
+        in-bootloader connections always use 2 stopbits.
         Defaults:
             WIN32 - 2sb
             Posix - auto stopbits (2sb->, ->1sb)
         */
             sscanf(optarg, "%d", &stopbits);
             if (ensureIntIn(stopbits, allowedStopBits, sizeof(allowedStopBits))) {
-                stopbitsAreForced = 1;
+                deviceParams.stopbitsAreForced = 1;
                 deviceParams.stopbits = stopbits;
-                bootloaderParams.stopbits = stopbits;
                 break;
             } else {
                 printf ("Stopbits (-s <%d>) are not supported!\n", stopbits);
@@ -271,7 +271,7 @@ int main(int argc, char *argv[])
     }
 
     //Connecting on device's params
-    modbus_t *deviceParamsConnection = initModbus(device, deviceParams, modbusID, debug, responseTimeout);
+    modbus_t *deviceParamsConnection = initModbus(device, deviceParams, modbusID, debug, responseTimeout, 0);
 
     printf("%s opened successfully.\n", device);
 
@@ -320,18 +320,18 @@ int main(int argc, char *argv[])
         modbus_t *readInfoConnection;
         if (inBootloader) {
             struct UartSettings params = (jumpCmdCurrentBaud) ? deviceParams : bootloaderParams;
-            readInfoConnection = initModbus(device, params, modbusID, debug, blResponseTimeout);
+            readInfoConnection = initModbus(device, params, modbusID, debug, blResponseTimeout, 1);
             if (probeConnection(readInfoConnection) < 0) {
                 fprintf(stderr, "Failed to connect (%d %s): %s\n", modbusID, device, modbus_strerror(errno));
                 deinitModbus(readInfoConnection);
                 exit(EXIT_FAILURE);
             }
         } else {  // We do not know actual device's state
-            readInfoConnection = initModbus(device, deviceParams, modbusID, debug, responseTimeout);
+            readInfoConnection = initModbus(device, deviceParams, modbusID, debug, responseTimeout, 0);
             if (probeConnection(readInfoConnection) < 0) {
                 printf("Trying to probe (%d %s) at bootloader params...\n", modbusID, device);
                 deinitModbus(readInfoConnection);
-                readInfoConnection = initModbus(device, bootloaderParams, modbusID, debug, blResponseTimeout);
+                readInfoConnection = initModbus(device, bootloaderParams, modbusID, debug, blResponseTimeout, 1);
                 if (probeConnection(readInfoConnection) < 0) {
                     fprintf(stderr, "Failed to connect (%d %s) at bootloader settings: %s\n", modbusID, device, modbus_strerror(errno));
                     deinitModbus(readInfoConnection);
@@ -347,13 +347,8 @@ int main(int argc, char *argv[])
         exit(EXIT_SUCCESS);
     }
 
-    modbus_t *bootloaderParamsConnection;
-    if (jumpCmdCurrentBaud) {
-        bootloaderParamsConnection = initModbus(device, deviceParams, modbusID, debug, blResponseTimeout);
-    } else {
-        //Connecting on Bootloader's params
-        bootloaderParamsConnection = initModbus(device, bootloaderParams, modbusID, debug, blResponseTimeout);
-    }
+    struct UartSettings params = (jumpCmdCurrentBaud) ? deviceParams : bootloaderParams;
+    modbus_t *bootloaderParamsConnection = initModbus(device, params, modbusID, debug, blResponseTimeout, 1);
 
     if (uartResetCmd) {
         printf("Send reset UART settings and modbus address command...\n");
@@ -510,11 +505,15 @@ int ensureCharIn(char param, const char array[], unsigned int arrayLen) {
     return valueIsIn;
 }
 
-modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAddr, int debug, float responseTimeout){
+modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAddr, int debug, float responseTimeout, int forceTwoStopbits){
+    if (forceTwoStopbits) {
+        deviceParams.stopbits = 2;
+        deviceParams.stopbitsAreForced = 1;
+    }
 #if defined(_WIN32)  // different stopbits for receiving & transmitting are supported only in posix
     modbus_t *mbConnection = modbus_new_rtu(device, deviceParams.baudrate, deviceParams.parity, deviceParams.databits, deviceParams.stopbits);
 #else
-    int stopbitsReceiving = (stopbitsAreForced == 0) ? 1 : deviceParams.stopbits;
+    int stopbitsReceiving = (deviceParams.stopbitsAreForced == 0) ? 1 : deviceParams.stopbits;
     modbus_t *mbConnection = modbus_new_rtu_different_stopbits(device, deviceParams.baudrate, deviceParams.parity, deviceParams.databits, deviceParams.stopbits, stopbitsReceiving);
 #endif
 
