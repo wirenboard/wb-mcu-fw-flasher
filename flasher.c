@@ -44,6 +44,11 @@ struct UartSettings {
     int stopbitsAreForced;
 } UartSettings;
 
+enum stopbits_mode {
+    STOPBITS_FROM_PARAMS,
+    STOPBITS_FORCE_TWO
+};
+
 const int allowedBaudrates[] = {1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400};
 const int allowedStopBits[] = {1, 2};
 const char allowedParity[] = {'N', 'E', 'O'};
@@ -51,7 +56,7 @@ const char allowedParity[] = {'N', 'E', 'O'};
 int ensureIntIn(int param, const int array[], unsigned int arrayLen);
 int ensureCharIn(char param, const char array[], unsigned int arrayLen);
 
-modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAddr, int debug, float responseTimeout, int forceTwoStopbits);
+modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAddr, int debug, float responseTimeout, enum stopbits_mode stopbitsMode);
 
 void deinitModbus(modbus_t *modbusConnection);
 
@@ -271,7 +276,7 @@ int main(int argc, char *argv[])
     }
 
     //Connecting on device's params
-    modbus_t *deviceParamsConnection = initModbus(device, deviceParams, modbusID, debug, responseTimeout, 0);
+    modbus_t *deviceParamsConnection = initModbus(device, deviceParams, modbusID, debug, responseTimeout, STOPBITS_FROM_PARAMS);
 
     printf("%s opened successfully.\n", device);
 
@@ -320,18 +325,18 @@ int main(int argc, char *argv[])
         modbus_t *readInfoConnection;
         if (inBootloader) {
             struct UartSettings params = (jumpCmdCurrentBaud) ? deviceParams : bootloaderParams;
-            readInfoConnection = initModbus(device, params, modbusID, debug, blResponseTimeout, 1);
+            readInfoConnection = initModbus(device, params, modbusID, debug, blResponseTimeout, STOPBITS_FORCE_TWO);
             if (probeConnection(readInfoConnection) < 0) {
                 fprintf(stderr, "Failed to connect (%d %s): %s\n", modbusID, device, modbus_strerror(errno));
                 deinitModbus(readInfoConnection);
                 exit(EXIT_FAILURE);
             }
         } else {  // We do not know actual device's state
-            readInfoConnection = initModbus(device, deviceParams, modbusID, debug, responseTimeout, 0);
+            readInfoConnection = initModbus(device, deviceParams, modbusID, debug, responseTimeout, STOPBITS_FROM_PARAMS);
             if (probeConnection(readInfoConnection) < 0) {
                 printf("Trying to probe (%d %s) at bootloader params...\n", modbusID, device);
                 deinitModbus(readInfoConnection);
-                readInfoConnection = initModbus(device, bootloaderParams, modbusID, debug, blResponseTimeout, 1);
+                readInfoConnection = initModbus(device, bootloaderParams, modbusID, debug, blResponseTimeout, STOPBITS_FORCE_TWO);
                 if (probeConnection(readInfoConnection) < 0) {
                     fprintf(stderr, "Failed to connect (%d %s) at bootloader settings: %s\n", modbusID, device, modbus_strerror(errno));
                     deinitModbus(readInfoConnection);
@@ -348,7 +353,7 @@ int main(int argc, char *argv[])
     }
 
     struct UartSettings params = (jumpCmdCurrentBaud) ? deviceParams : bootloaderParams;
-    modbus_t *bootloaderParamsConnection = initModbus(device, params, modbusID, debug, blResponseTimeout, 1);
+    modbus_t *bootloaderParamsConnection = initModbus(device, params, modbusID, debug, blResponseTimeout, STOPBITS_FORCE_TWO);
 
     if (uartResetCmd) {
         printf("Send reset UART settings and modbus address command...\n");
@@ -505,8 +510,8 @@ int ensureCharIn(char param, const char array[], unsigned int arrayLen) {
     return valueIsIn;
 }
 
-modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAddr, int debug, float responseTimeout, int forceTwoStopbits){
-    if (forceTwoStopbits) {
+modbus_t *initModbus(char *device, struct UartSettings deviceParams, int slaveAddr, int debug, float responseTimeout, enum stopbits_mode stopbitsMode){
+    if (stopbitsMode == STOPBITS_FORCE_TWO) {
         deviceParams.stopbits = 2;
         deviceParams.stopbitsAreForced = 1;
     }
