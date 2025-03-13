@@ -1,8 +1,8 @@
 Source: wb-mcu-fw-flasher
-Maintainer: Evgeny Boger <boger@contactless.ru>
+Maintainer: Wiren Board team <info@wirenboard.com>
 Section: misc
 Priority: optional
-Standards-Version: 3.9.2
+Standards-Version: 4.5.1
 Build-Depends: debhelper (>= 9), pkg-config
 Homepage: https://github.com/wirenboard/wb-mcu-fw-flasher
 
@@ -10,3 +10,5 @@ Package: wb-mcu-fw-flasher
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Firmware update tool for Wiren Board Modbus devices (WB-M*)
+ wb-mcu-fw-flasher is a tool for updating firmware of
+ Wiren Board Modbus devices.

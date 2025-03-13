@@ -1,3 +1,9 @@
+wb-mcu-fw-flasher (1.4.2) stable; urgency=medium
+
+  * Fix lintian, no functional changes
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Thu, 13 Mar 2025 16:34:00 +0400
+
 wb-mcu-fw-flasher (1.4.1) stable; urgency=medium
 
   * Don't exit on slave error when sending data blocks
