@@ -1,3 +1,10 @@
+wb-mcu-fw-flasher (1.4.1) stable; urgency=medium
+
+  * Don't exit on slave error when sending data blocks
+  * Always use 2 stopbits for bootloader connection
+
+ -- Pavel Gasheev <pavel.gasheev@wirenboard.com>  Mon, 10 Mar 2025 15:02:08 +0300
+
 wb-mcu-fw-flasher (1.4.0) stable; urgency=medium
 
   * Add --get-device-info arg
