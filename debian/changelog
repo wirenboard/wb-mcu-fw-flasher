@@ -1,3 +1,9 @@
+wb-mcu-fw-flasher (1.7.0) stable; urgency=medium
+
+  * Port for Debian 13
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Tue, 02 Jun 2026 16:20:00 +0400
+
 wb-mcu-fw-flasher (1.6.1) stable; urgency=medium
 
   * Fix modbus interframe delay
