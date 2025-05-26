@@ -19,7 +19,8 @@
 #define HOLD_REG_JUMP_TO_BOOT_CURRENT_BAUD  131
 #define HOLD_REG_CMD_UART_SETTINGS_RESET    1000
 #define HOLD_REG_CMD_EEPROM_ERASE           1001
-#define HOLD_REG_CMD_FLASHFS_ERASE          1002
+#define HOLD_REG_CMD_FLASHFS_ERASE_SETTINGS 1002
+#define HOLD_REG_CMD_FLASHFS_FULL_ERASE     1005
 
 #define HOLD_REG_BOOTLOADER_VERSION 330
 #define BOOTLOADER_VERSION_LEN      8
@@ -145,7 +146,8 @@ int main(int argc, char *argv[])
     int   onlyReadInfo = 0;
     int   uartResetCmd = 0;
     int   eepromFormatCmd = 0;
-    int   falshFsFormatCmd = 0;
+    int   flashFsEraseSettingsCmd = 0;
+    int   flashFsFullEraseCmd = 0;
     int   debug    = 0;
     int   inBootloader = 0;
     float responseTimeout = 10.0f; // Seconds
@@ -157,7 +159,7 @@ int main(int argc, char *argv[])
 
     int c;
     int stopbits;
-    while ((c = getopt_long(argc, argv, "d:f:a:t:jJuewDb:p:s:B:", longOptions, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "d:f:a:t:jJuewWDb:p:s:B:", longOptions, NULL)) != -1) {
         switch (c) {
         case 'd':
             device = optarg;
@@ -189,7 +191,10 @@ int main(int argc, char *argv[])
             eepromFormatCmd = 1;
             break;
         case 'w':
-            falshFsFormatCmd = 1;
+            flashFsEraseSettingsCmd = 1;
+            break;
+        case 'W':
+            flashFsFullEraseCmd = 1;
             break;
         case 'D':
             debug = 1;
@@ -377,10 +382,21 @@ int main(int argc, char *argv[])
         sleep(1);    // wait 1 second
     }
 
-    if (falshFsFormatCmd) {
-        printf("Send format FlashFS command...\n");
-        if (modbus_write_register(bootloaderParamsConnection, HOLD_REG_CMD_FLASHFS_ERASE, 1) == 1) {
+    if (flashFsEraseSettingsCmd) {
+        printf("Send FlashFS erase settings command...\n");
+        if (modbus_write_register(bootloaderParamsConnection, HOLD_REG_CMD_FLASHFS_ERASE_SETTINGS, 1) == 1) {
             printf("Ok.\n");
+            inBootloader = 1;
+        } else {
+            printf("Error: %s.\n", modbus_strerror(errno));
+        }
+        sleep(1);    // wait 1 second
+    }
+
+    if (flashFsFullEraseCmd) {
+        printf("Send FlashFS full erase command...\n");
+        if (modbus_write_register(bootloaderParamsConnection, HOLD_REG_CMD_FLASHFS_FULL_ERASE, 1) == 1) {
+            printf("Ok. All device settings, communication settings and calibration data was erased.\n");
             inBootloader = 1;
         } else {
             printf("Error: %s.\n", modbus_strerror(errno));

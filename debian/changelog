@@ -1,3 +1,9 @@
+wb-mcu-fw-flasher (1.5.0) stable; urgency=medium
+
+  * Add full FlashFS erase support for new 1.5.x bootloaders
+
+ -- Pavel Gasheev <pavel.gasheev@wirenboard.com>  Thu, 22 May 2025 18:00:04 +0300
+
 wb-mcu-fw-flasher (1.4.2) stable; urgency=medium
 
   * Fix lintian, no functional changes
