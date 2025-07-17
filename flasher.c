@@ -319,15 +319,25 @@ int main(int argc, char *argv[])
         }
         sleep(2);    // wait 2 seconds
     } else if (jumpCmdCurrentBaud) {
-        printf("Try to jump to bootloader using current baudrate...\n");
+        if (jumpValue == 1) {
+            printf("Try to jump to bootloader using current baudrate...\n");
+        } else {
+            printf("Try to enter additional firmwares update mode...\n");
+        }
         if (modbus_write_register(deviceParamsConnection, HOLD_REG_JUMP_TO_BOOT_CURRENT_BAUD, jumpValue) == 1) {
             printf("Ok, device supports this. Baudrate %d will be used for flashing.\n", deviceParams.baudrate);
             inBootloader = 1;
         } else {
             fprintf(stderr, "Error while writing register %d: %s.\n", HOLD_REG_JUMP_TO_BOOT_CURRENT_BAUD, modbus_strerror(errno));
             if (errno == EMBXILADD) {
-                fprintf(stderr, "Firmware and/or bootloader doesn't support this command. Please upgrade firmware and/or bootloader.\n");
-                fprintf(stderr, "Alternatively, you can use -j option to jump to bootloader using standard baudrate.\n");
+                if (jumpValue == 1) {
+                    fprintf(stderr, "Firmware and/or bootloader doesn't support this command. Please upgrade firmware and/or bootloader.\n");
+                    fprintf(stderr, "Alternatively, you can use -j option to jump to bootloader using standard baudrate.\n");
+                } else {
+                    fprintf(stderr, "Seems you trying to update addtional device firmwares, but device doesn't support this jump_value.\n");
+                    fprintf(stderr, "Check that your device has installed the sensor with firmware you want to update.\n");
+                    fprintf(stderr, "Also check documentation for supported jump values.\n");
+                }
             } else {
                 fprintf(stderr, "Other error, check device connection parameters.\n");
             }
