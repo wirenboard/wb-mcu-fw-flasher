@@ -160,7 +160,7 @@ int main(int argc, char *argv[])
 
     const struct option longOptions[] = {
 		{ "get-device-info", no_argument, &onlyReadInfo, 1 },
-		{ "jump-value", optional_argument, NULL, 0 },
+		{ "jump-value", required_argument, NULL, 0 },
 		{ NULL, 0, NULL, 0}
 	};
 
