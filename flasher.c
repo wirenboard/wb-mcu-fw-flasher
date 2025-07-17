@@ -99,6 +99,7 @@ int main(int argc, char *argv[])
         printf("-B     Baudrate used to communicate with bootloader              9600\n");
         printf("-p     Parity                                                    N\n");
         printf("-t     Slave response timeout (in seconds)                       10.0\n");
+        printf("       --jump-value  Value to write for jump commands (-j/-J)    1\n");
 
         printf("\nExamples:\n\n");
 
@@ -115,6 +116,10 @@ int main(int argc, char *argv[])
         printf("Flashing running device using custom baudrate:\n");
         printf("    %s -d <port> -a <modbus_addr> -b115200 -J -f <firmware.wbfw>\n", argv[0]);
         printf("    useful for flashing device behind Modbus-TCP gateway\n\n");
+
+        printf("Jump to bootloader with custom value:\n");
+        printf("    %s -d <port> -a <modbus_addr> -j --jump-value 5\n", argv[0]);
+        printf("    useful for devices that require specific jump value\n\n");
 
         printf("Only read device info (no flashing):\n");
         printf("    %s -d <port> -a10 --get-device-info\n\n", argv[0]);
@@ -150,17 +155,26 @@ int main(int argc, char *argv[])
     int   flashFsFullEraseCmd = 0;
     int   debug    = 0;
     int   inBootloader = 0;
+    int   jumpValue = 1; // Default jump value
     float responseTimeout = 10.0f; // Seconds
 
     const struct option longOptions[] = {
 		{ "get-device-info", no_argument, &onlyReadInfo, 1 },
+		{ "jump-value", optional_argument, NULL, 0 },
 		{ NULL, 0, NULL, 0}
 	};
 
     int c;
     int stopbits;
-    while ((c = getopt_long(argc, argv, "d:f:a:t:jJuewWDb:p:s:B:", longOptions, NULL)) != -1) {
+    int longOptionIndex = 0;
+    while ((c = getopt_long(argc, argv, "d:f:a:t:jJuewWDb:p:s:B:", longOptions, &longOptionIndex)) != -1) {
         switch (c) {
+        case 0:
+            // Handle long options
+            if (strcmp(longOptions[longOptionIndex].name, "jump-value") == 0) {
+                sscanf(optarg, "%d", &jumpValue);
+            }
+            break;
         case 'd':
             device = optarg;
             break;
@@ -287,7 +301,7 @@ int main(int argc, char *argv[])
 
     if (jumpCmdStandardBaud) {
         printf("Send jump to bootloader command and wait 2 seconds...\n");
-        if (modbus_write_register(deviceParamsConnection, HOLD_REG_JUMP_TO_BOOT_STANDARD_BAUD, 1) == 1) {
+        if (modbus_write_register(deviceParamsConnection, HOLD_REG_JUMP_TO_BOOT_STANDARD_BAUD, jumpValue) == 1) {
             printf("Ok, device will jump to bootloader.\n");
             inBootloader = 1;
         } else {
@@ -300,13 +314,13 @@ int main(int argc, char *argv[])
                 exit(EXIT_FAILURE);
             }
             //Devices firmwares have bug: writing to  HOLD_REG_JUMP_TO_BOOTLOADER at low BDs causes modbus timeout error.
-            //"1" in HOLD_REG_JUMP_TO_BOOTLOADER causes reboot to bootloader, and device have ~5ms to send a responce
+            //"jumpValue" in HOLD_REG_JUMP_TO_BOOTLOADER causes reboot to bootloader, and device have ~5ms to send a responce
             printf("May be device already in bootloader, check status led\n");
         }
         sleep(2);    // wait 2 seconds
     } else if (jumpCmdCurrentBaud) {
         printf("Try to jump to bootloader using current baudrate...\n");
-        if (modbus_write_register(deviceParamsConnection, HOLD_REG_JUMP_TO_BOOT_CURRENT_BAUD, 1) == 1) {
+        if (modbus_write_register(deviceParamsConnection, HOLD_REG_JUMP_TO_BOOT_CURRENT_BAUD, jumpValue) == 1) {
             printf("Ok, device supports this. Baudrate %d will be used for flashing.\n", deviceParams.baudrate);
             inBootloader = 1;
         } else {
