@@ -31,6 +31,18 @@
 
 #define BL_MINIMAL_RESPONSE_TIMEOUT    5.0
 
+// Component firmware registers
+#define COMP_FW_FLAGS_REG               0xFE80
+#define COMP_FW_BASE_REG                0xFD00
+#define COMP_FW_INFO_STRIDE             48
+#define COMP_FW_MODEL_OFFSET            0
+#define COMP_FW_MODEL_LEN               20
+#define COMP_FW_SIGNATURE_OFFSET        0x14
+#define COMP_FW_SIGNATURE_LEN           12
+#define COMP_FW_VERSION_OFFSET          0x20
+#define COMP_FW_VERSION_LEN             16
+#define COMP_FW_MAX_COUNT               8
+
 #define xstr(a) str(a)
 #define str(a) #a
 
@@ -66,6 +78,8 @@ char *mbReadString(modbus_t *ctx, int startAddr, int len);
 int probeConnection(modbus_t *ctx);
 
 int printDeviceInfo(modbus_t *ctx);
+
+int printComponentFirmwares(modbus_t *ctx);
 
 struct timeval parseResponseTimeout(float timeoutSec);
 
@@ -623,7 +637,67 @@ int printDeviceInfo(modbus_t *ctx){
     }
     free(firmwareSignature);
 
+    // Try to read component firmware info (only when not in bootloader)
+    if (firmwareVersion != NULL) {
+        rc = printComponentFirmwares(ctx);
+    }
+
     return rc;
+}
+
+int printComponentFirmwares(modbus_t *ctx){
+    uint8_t componentFlags[COMP_FW_MAX_COUNT] = {0};
+
+    // Try to read component firmware flags
+    int rc = modbus_read_input_bits(ctx, COMP_FW_FLAGS_REG, COMP_FW_MAX_COUNT, componentFlags);
+    if (rc < 0) {
+        // Silently ignore if component firmware is not supported
+        if (errno == EMBXILADD) {
+            return 0;  // Component firmware not supported
+        }
+        printf("Component firmware flags read error: %s\n", modbus_strerror(errno));
+        return rc;
+    }
+
+    int foundComponents = 0;
+    for (int i = 0; i < COMP_FW_MAX_COUNT; i++) {
+        if (componentFlags[i]) {
+            if (!foundComponents) {
+                printf("\nComponent firmwares:\n");
+                foundComponents = 1;
+            }
+
+            int baseAddr = COMP_FW_BASE_REG + i * COMP_FW_INFO_STRIDE;
+
+            char *model = mbReadString(ctx, baseAddr + COMP_FW_MODEL_OFFSET, COMP_FW_MODEL_LEN);
+            char *signature = mbReadString(ctx, baseAddr + COMP_FW_SIGNATURE_OFFSET, COMP_FW_SIGNATURE_LEN);
+            char *version = mbReadString(ctx, baseAddr + COMP_FW_VERSION_OFFSET, COMP_FW_VERSION_LEN);
+
+            printf("  Component %d:\n", i + 1);
+            if (model) {
+                printf("    Model: %s\n", model);
+            } else {
+                printf("    Model: <read error>\n");
+            }
+            if (version) {
+                printf("    Version: %s\n", version);
+            } else {
+                printf("    Version: <read error>\n");
+            }
+            if (signature) {
+                printf("    Signature: %s\n", signature);
+                printf("    Download: https://fw-releases.wirenboard.com/?prefix=fw/by-signature/%s/\n", signature);
+            } else {
+                printf("    Signature: <read error>\n");
+            }
+
+            free(model);
+            free(signature);
+            free(version);
+        }
+    }
+
+    return 0;
 }
 
 struct timeval parseResponseTimeout(float timeoutSec) {
