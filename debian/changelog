@@ -1,3 +1,9 @@
+wb-mcu-fw-flasher (1.6.1) stable; urgency=medium
+
+  * Fix modbus interframe delay
+
+ -- Sergey Nikitenko <siarhei.nikitsenka@wirenboard.com>  Tue, 30 Dec 2025 22:00:00 +0300
+
 wb-mcu-fw-flasher (1.6.0) stable; urgency=medium
 
   * Add component firmware information to --get-device-info option
