@@ -85,6 +85,8 @@ struct timeval parseResponseTimeout(float timeoutSec);
 
 void setResponseTimeout(struct timeval timeoutStruct, modbus_t *modbusContext);
 
+void interFrameDelay(void);
+
 int main(int argc, char *argv[])
 {
     if (argc == 1) {
@@ -456,6 +458,7 @@ int main(int argc, char *argv[])
         if (modbus_write_registers(bootloaderParamsConnection, INFO_BLOCK_REG_ADDRESS, INFO_BLOCK_SIZE / 2, &data[filePointer / 2]) == (INFO_BLOCK_SIZE / 2)) {
             printf(" OK\n"); fflush(stdout);
             filePointer += INFO_BLOCK_SIZE;
+            interFrameDelay();
             break;
         }
         printf("\n"); fflush(stdout);
@@ -492,6 +495,7 @@ int main(int argc, char *argv[])
         if (modbus_write_registers(bootloaderParamsConnection, DATA_BLOCK_REG_ADDRESS, DATA_BLOCK_SIZE / 2, &data[filePointer / 2]) == (DATA_BLOCK_SIZE / 2)) {
             filePointer += DATA_BLOCK_SIZE;
             errorCount = 0;
+            interFrameDelay();
         } else {
             printf("\n"); fflush(stdout);
             fprintf(stderr, "Error while sending data block: %s\n", modbus_strerror(errno));
@@ -715,4 +719,14 @@ void setResponseTimeout(struct timeval timeoutStruct, modbus_t *modbusContext){
     #else
         modbus_set_response_timeout(modbusContext, &timeoutStruct);
     #endif
+}
+
+void interFrameDelay(void) {
+    // Workaround for issue FW-1187 (unexpected timeout error).
+    // In rare cases the next frame may start too soon after the previous one,
+    // which can cause a receiving error. Ensuring a minimal gap between frames
+    // resolves the issue. A 100 µs delay is sufficient in practice.
+    // However, we do not have a portable way to implement such a small delay
+    // on all platforms, and sleep(0) has proven to be sufficient.
+    sleep(0);
 }
