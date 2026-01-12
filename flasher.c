@@ -722,7 +722,11 @@ void setResponseTimeout(struct timeval timeoutStruct, modbus_t *modbusContext){
 }
 
 void interFrameDelay(void) {
-    // Ensure minimal gap between frames
-    // sleep(0) is sufficient in practice
+    // Workaround for issue FW-1187 (unexpected timeout error).
+    // In rare cases the next frame may start too soon after the previous one,
+    // which can cause a receiving error. Ensuring a minimal gap between frames
+    // resolves the issue. A 100 µs delay is sufficient in practice.
+    // However, we do not have a portable way to implement such a small delay
+    // on all platforms, and sleep(0) has proven to be sufficient.
     sleep(0);
 }
