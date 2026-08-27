@@ -1,3 +1,9 @@
+wb-mcu-fw-flasher (1.7.2) stable; urgency=medium
+
+  * Fix out-of-bounds read while validating -b, -B, -s and -p values
+
+ -- Nikolay Korotkiy <nikolay.korotkiy@wirenboard.com>  Mon, 24 Aug 2026 20:40:00 +0400
+
 wb-mcu-fw-flasher (1.7.1) stable; urgency=medium
 
   * Edit README.md
