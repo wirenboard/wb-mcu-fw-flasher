@@ -46,6 +46,8 @@
 #define xstr(a) str(a)
 #define str(a) #a
 
+#define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
+
 const char flashingExample[] = "-d <port> -f <firmware.wbfw>";
 const char casualUsageExample[] = "-d <port> -a <modbus_addr> -j -f <firmware.wbfw>";
 
@@ -217,7 +219,7 @@ int main(int argc, char *argv[])
             break;
         case 'b':
             sscanf(optarg, "%d", &deviceParams.baudrate);
-            if (ensureIntIn(deviceParams.baudrate, allowedBaudrates, sizeof(allowedBaudrates))) {
+            if (ensureIntIn(deviceParams.baudrate, allowedBaudrates, ARRAY_LEN(allowedBaudrates))) {
                 break;
             } else {
                 printf("Baudrate (-b <%d>) is not supported!\n", deviceParams.baudrate);
@@ -225,7 +227,7 @@ int main(int argc, char *argv[])
             };
         case 'B':
             sscanf(optarg, "%d", &bootloaderParams.baudrate);
-            if (ensureIntIn(bootloaderParams.baudrate, allowedBaudrates, sizeof(allowedBaudrates))) {
+            if (ensureIntIn(bootloaderParams.baudrate, allowedBaudrates, ARRAY_LEN(allowedBaudrates))) {
                 break;
             } else {
                 printf("Baudrate (-B <%d>) is not supported!\n", bootloaderParams.baudrate);
@@ -233,7 +235,7 @@ int main(int argc, char *argv[])
             };
         case 'p':
             sscanf(optarg, "%c", &deviceParams.parity);
-            if (ensureCharIn(deviceParams.parity, allowedParity, sizeof(allowedParity))) {
+            if (ensureCharIn(deviceParams.parity, allowedParity, ARRAY_LEN(allowedParity))) {
                 break;
             } else {
                 printf("Parity (-p <%c>) is not supported!\n", deviceParams.parity);
@@ -248,7 +250,7 @@ int main(int argc, char *argv[])
             Posix - auto stopbits (2sb->, ->1sb)
         */
             sscanf(optarg, "%d", &stopbits);
-            if (ensureIntIn(stopbits, allowedStopBits, sizeof(allowedStopBits))) {
+            if (ensureIntIn(stopbits, allowedStopBits, ARRAY_LEN(allowedStopBits))) {
                 deviceParams.stopbitsAreForced = 1;
                 deviceParams.stopbits = stopbits;
                 break;
