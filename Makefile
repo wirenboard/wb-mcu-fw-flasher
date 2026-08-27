@@ -1,5 +1,4 @@
-DESTDIR=/
-prefix=usr
+PREFIX=/usr
 BIN_NAME=wb-mcu-fw-flasher
 W32_CROSS=i686-w64-mingw32
 
@@ -38,7 +37,7 @@ $(W32_BIN_NAME): flasher.c libmodbus-$(W32_CROSS)/src/.libs/libmodbus.a
 win32: $(W32_BIN_NAME)
 
 install: $(BIN_NAME)
-	install -m 0755 $(BIN_NAME) $(DESTDIR)/$(prefix)/bin/$(BIN_NAME)
+	install -Dm0755 $(BIN_NAME) -t $(DESTDIR)$(PREFIX)/bin
 
 clean:
 	-@rm -f $(BIN_NAME)
