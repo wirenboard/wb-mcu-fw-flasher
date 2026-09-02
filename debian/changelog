@@ -1,3 +1,10 @@
+wb-mcu-fw-flasher (1.7.3) stable; urgency=medium
+
+  * Build libmodbus from a submodule pinned to dev/3.2.0 instead of cloning
+    whatever the default branch happens to be
+
+ -- Ilya Titov <ilya.titov@wirenboard.com>  Wed, 02 Sep 2026 12:05:54 +0300
+
 wb-mcu-fw-flasher (1.7.2) stable; urgency=medium
 
   * Fix out-of-bounds read while validating -b, -B, -s and -p values
