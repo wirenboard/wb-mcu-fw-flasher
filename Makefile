@@ -14,24 +14,23 @@ endif
 CC_FLAGS=-Wall -std=c99 -DVERSION=$(VERSION)
 
 $(BIN_NAME): flasher.c libmodbus-$(DEB_HOST_GNU_TYPE)/src/.libs/libmodbus.a
-	$(CC)  flasher.c  $(CC_FLAGS) -Ilibmodbus-$(DEB_HOST_GNU_TYPE)/src -Llibmodbus-$(DEB_HOST_GNU_TYPE)/src/.libs -static -lmodbus -o $(BIN_NAME)
+	$(CC)  flasher.c  $(CC_FLAGS) -Ilibmodbus/src -Ilibmodbus-$(DEB_HOST_GNU_TYPE)/src -Llibmodbus-$(DEB_HOST_GNU_TYPE)/src/.libs -static -lmodbus -o $(BIN_NAME)
 
-libmodbus-$(DEB_HOST_GNU_TYPE):
-	git clone https://github.com/wirenboard/libmodbus.git $@
+libmodbus/configure:
+	cd libmodbus && ./autogen.sh
 
-libmodbus-$(DEB_HOST_GNU_TYPE)/src/.libs/libmodbus.a: libmodbus-$(DEB_HOST_GNU_TYPE)
-	cd $< && ./autogen.sh && ./configure --host $(subst libmodbus-,,$<) --enable-static=yes --without-documentation --disable-tests
-	make -C $<
+libmodbus-$(DEB_HOST_GNU_TYPE)/src/.libs/libmodbus.a: libmodbus/configure
+	mkdir -p libmodbus-$(DEB_HOST_GNU_TYPE)
+	cd libmodbus-$(DEB_HOST_GNU_TYPE) && ../libmodbus/configure --host $(DEB_HOST_GNU_TYPE) --enable-static=yes --without-documentation --disable-tests
+	make -C libmodbus-$(DEB_HOST_GNU_TYPE)
 
-libmodbus-$(W32_CROSS):
-	git clone https://github.com/wirenboard/libmodbus.git $@
-
-libmodbus-$(W32_CROSS)/src/.libs/libmodbus.a: libmodbus-$(W32_CROSS)
-	cd $< && ./autogen.sh && ./configure --host $(subst libmodbus-,,$<) --enable-static=yes --without-documentation --disable-tests
-	make -C $<
+libmodbus-$(W32_CROSS)/src/.libs/libmodbus.a: libmodbus/configure
+	mkdir -p libmodbus-$(W32_CROSS)
+	cd libmodbus-$(W32_CROSS) && ../libmodbus/configure --host $(W32_CROSS) --enable-static=yes --without-documentation --disable-tests
+	make -C libmodbus-$(W32_CROSS)
 
 $(W32_BIN_NAME): flasher.c libmodbus-$(W32_CROSS)/src/.libs/libmodbus.a
-	$(W32_CROSS)-gcc flasher.c $(CC_FLAGS) -Ilibmodbus-$(W32_CROSS)/src  -mconsole -static  -L libmodbus-$(W32_CROSS)/src/.libs/  -lmodbus -l ws2_32 -o $(W32_BIN_NAME)
+	$(W32_CROSS)-gcc flasher.c $(CC_FLAGS) -Ilibmodbus/src -Ilibmodbus-$(W32_CROSS)/src  -mconsole -static  -L libmodbus-$(W32_CROSS)/src/.libs/  -lmodbus -l ws2_32 -o $(W32_BIN_NAME)
 	$(W32_CROSS)-strip --strip-unneeded $(W32_BIN_NAME)
 
 win32: $(W32_BIN_NAME)
