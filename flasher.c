@@ -298,6 +298,38 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    // Read the firmware before talking to the device: a bad -f must not leave the device in the bootloader
+    uint16_t *data = NULL;
+    unsigned int filesize = 0;
+    if ((fileName != NULL) && !onlyReadInfo) {
+        FILE *file = fopen(fileName, "rb");
+        if (file == NULL) {
+            fprintf(stderr, "Error while opening firmware file: %s\n", strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+
+        fseek(file, 0L, SEEK_END);
+        filesize = ftell(file);
+        printf("%s opened successfully, size %d bytes\n", fileName, filesize);
+        rewind(file);
+
+        if (filesize < INFO_BLOCK_SIZE) {
+            fprintf(stderr, "Firmware file is too short: %u bytes\n", filesize);
+            exit(EXIT_FAILURE);
+        }
+
+        data = malloc(filesize);
+        if ((data == NULL) || (fread(data, 1, filesize, file) != filesize)) {
+            fprintf(stderr, "Error while reading firmware file: %s\n", strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+        fclose(file);
+
+        for (unsigned int i = 0; i < filesize / 2; i++) {
+            data[i] = ((data[i] & 0xFF) << 8) | ((data[i] & 0xFF00) >> 8);
+        }
+    }
+
     //Connecting on device's params
     modbus_t *deviceParamsConnection = initModbus(device, deviceParams, modbusID, debug, responseTimeout, STOPBITS_FROM_PARAMS);
 
@@ -431,27 +463,6 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    FILE *file = fopen(fileName, "rb");
-    if (file == NULL) {
-        fprintf(stderr, "Error while opening firmware file: %s\n", strerror(errno));
-        deinitModbus(bootloaderParamsConnection);
-        exit(EXIT_FAILURE);
-    }
-
-    fseek(file, 0L, SEEK_END);
-    unsigned int filesize = ftell(file);
-    printf("%s opened successfully, size %d bytes\n", fileName, filesize);
-    rewind(file);
-
-    uint16_t *data = malloc(filesize);
-    if (fread(data, 1, filesize, file) != filesize) {
-        fprintf(stderr, "Error while reading firmware file: %s\n", strerror(errno));
-    }
-
-    for (unsigned int i = 0; i < filesize / 2; i++) {
-        data[i] = ((data[i] & 0xFF) << 8) | ((data[i] & 0xFF00) >> 8);
-    }
-
     int errorCount = 0;
     unsigned int filePointer = 0;
 
@@ -517,7 +528,6 @@ int main(int argc, char *argv[])
 
     deinitModbus(bootloaderParamsConnection);
 
-    fclose(file);
     free(data);
 
     exit(EXIT_SUCCESS);
