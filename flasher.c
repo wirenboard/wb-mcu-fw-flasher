@@ -272,6 +272,8 @@ int main(int argc, char *argv[])
 
 #if defined(_WIN32)
     // We expect device in a form of "COMxx". So strip leading "." and "\", and trailing ":".
+    // device points to buffer afterwards, so buffer is declared outside the if block
+    char buffer[40] = "\\\\.\\";
     if (device) {
         size_t startPos = 0, endPos = strlen(device);
 
@@ -286,7 +288,6 @@ int main(int argc, char *argv[])
         char deviceStripped[32] = {};
         strncpy(deviceStripped, device + startPos, min(sizeof(deviceStripped) - 1, endPos - startPos + 1));
 
-        char buffer[40] = "\\\\.\\";
         strncpy(buffer + strlen(buffer), deviceStripped, sizeof(buffer) - strlen(buffer));
 
         device = buffer;
