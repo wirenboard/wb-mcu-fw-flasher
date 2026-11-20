@@ -272,6 +272,8 @@ int main(int argc, char *argv[])
 
 #if defined(_WIN32)
     // We expect device in a form of "COMxx". So strip leading "." and "\", and trailing ":".
+    // device points to buffer afterwards, so buffer is declared outside the if block
+    char buffer[40] = "\\\\.\\";
     if (device) {
         size_t startPos = 0, endPos = strlen(device);
 
@@ -286,7 +288,6 @@ int main(int argc, char *argv[])
         char deviceStripped[32] = {};
         strncpy(deviceStripped, device + startPos, min(sizeof(deviceStripped) - 1, endPos - startPos + 1));
 
-        char buffer[40] = "\\\\.\\";
         strncpy(buffer + strlen(buffer), deviceStripped, sizeof(buffer) - strlen(buffer));
 
         device = buffer;
@@ -296,6 +297,38 @@ int main(int argc, char *argv[])
     if (device == NULL) {
         printf("A port should be specified!\n%s -d <port>\n", argv[0]);
         exit(EXIT_FAILURE);
+    }
+
+    // Read the firmware before talking to the device: a bad -f must not leave the device in the bootloader
+    uint16_t *data = NULL;
+    unsigned int filesize = 0;
+    if ((fileName != NULL) && !onlyReadInfo) {
+        FILE *file = fopen(fileName, "rb");
+        if (file == NULL) {
+            fprintf(stderr, "Error while opening firmware file: %s\n", strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+
+        fseek(file, 0L, SEEK_END);
+        filesize = ftell(file);
+        printf("%s opened successfully, size %d bytes\n", fileName, filesize);
+        rewind(file);
+
+        if (filesize < INFO_BLOCK_SIZE) {
+            fprintf(stderr, "Firmware file is too short: %u bytes\n", filesize);
+            exit(EXIT_FAILURE);
+        }
+
+        data = malloc(filesize);
+        if ((data == NULL) || (fread(data, 1, filesize, file) != filesize)) {
+            fprintf(stderr, "Error while reading firmware file: %s\n", strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+        fclose(file);
+
+        for (unsigned int i = 0; i < filesize / 2; i++) {
+            data[i] = ((data[i] & 0xFF) << 8) | ((data[i] & 0xFF00) >> 8);
+        }
     }
 
     //Connecting on device's params
@@ -431,27 +464,6 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    FILE *file = fopen(fileName, "rb");
-    if (file == NULL) {
-        fprintf(stderr, "Error while opening firmware file: %s\n", strerror(errno));
-        deinitModbus(bootloaderParamsConnection);
-        exit(EXIT_FAILURE);
-    }
-
-    fseek(file, 0L, SEEK_END);
-    unsigned int filesize = ftell(file);
-    printf("%s opened successfully, size %d bytes\n", fileName, filesize);
-    rewind(file);
-
-    uint16_t *data = malloc(filesize);
-    if (fread(data, 1, filesize, file) != filesize) {
-        fprintf(stderr, "Error while reading firmware file: %s\n", strerror(errno));
-    }
-
-    for (unsigned int i = 0; i < filesize / 2; i++) {
-        data[i] = ((data[i] & 0xFF) << 8) | ((data[i] & 0xFF00) >> 8);
-    }
-
     int errorCount = 0;
     unsigned int filePointer = 0;
 
@@ -517,7 +529,6 @@ int main(int argc, char *argv[])
 
     deinitModbus(bootloaderParamsConnection);
 
-    fclose(file);
     free(data);
 
     exit(EXIT_SUCCESS);

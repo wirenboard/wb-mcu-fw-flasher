@@ -1,3 +1,13 @@
+wb-mcu-fw-flasher (1.7.4) stable; urgency=medium
+
+  * Fix the Windows build: since 1.7.3 every read from a device failed with
+    "Invalid socket descriptor -1" (regression in libmodbus 3.2.0)
+  * Check the firmware file before talking to the device: a wrong -f no longer
+    leaves the device in the bootloader or runs -u/-e/-w/-W
+  * Fix a dangling pointer to the port name in the Windows build
+
+ -- Nikolay Oleinik <nikolay.oleinik@wirenboard.com>  Fri, 20 Nov 2026 16:32:38 +0700
+
 wb-mcu-fw-flasher (1.7.3) stable; urgency=medium
 
   * Build libmodbus from a submodule pinned to dev/3.2.0 instead of cloning
