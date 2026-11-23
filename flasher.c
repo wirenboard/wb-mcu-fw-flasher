@@ -310,7 +310,12 @@ int main(int argc, char *argv[])
         }
 
         fseek(file, 0L, SEEK_END);
-        filesize = ftell(file);
+        long size = ftell(file);
+        if (size < 0) {
+            fprintf(stderr, "Error while reading firmware file: %s\n", strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+        filesize = size;
         printf("%s opened successfully, size %d bytes\n", fileName, filesize);
         rewind(file);
 
