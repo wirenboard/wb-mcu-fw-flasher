@@ -223,11 +223,11 @@ wb-mcu-fw-flasher -j -d /dev/ttyRS485-1 -a 1 -f WB-MR-MR6C_MCU3_3_ULN2003_1.9.4_
 
 ``` 
    wb-mcu-fw-flasher -j -d /dev/ttyRS485-1 -a 1 -f WB-MR-MR6C_MCU3_3_ULN2003_1.9.4_feature-bootloader_1.9.3_5932761.wbfw          
+   WB-MR-MR6C_MCU3_3_ULN2003_1.9.4_feature-bootloader_1.9.3_5932761.wbfw opened successfully, size 12136 bytes
    /dev/ttyRS485-1 opened successfully.
    Send jump to bootloader command and wait 2 seconds...
    Error: Connection timed out.
    May be device already in bootloader, try to send firmware...
-   WB-MR-MR6C_MCU3_3_ULN2003_1.9.4_feature-bootloader_1.9.3_5932761.wbfw opened successfully, size 12136 bytes
    Sending info block... OK
    Sending data block 89 of 89... OK.
    All done!
@@ -370,8 +370,8 @@ co2_sens_ns8
 Загрузка дополнительной прошивки происходит точно так же, как и загрузка основной прошивки, но без перехода в загрузчик. Пример команды:
 ```
 root@wirenboard-A7XCVEGT:~# wb-mcu-fw-flasher -d /dev/ttyRS485-1 -B115200 -a1 -f co2_sens_ns8__MF1.03D.compfw
-/dev/ttyRS485-1 opened successfully.
 co2_sens_ns8__MF1.03D.compfw opened successfully, size 29544 bytes
+/dev/ttyRS485-1 opened successfully.
 
 Sending info block... OK
 
